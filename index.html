@@ -469,6 +469,7 @@
       const e=$('authEmail').value.trim(),p=$('authPassword').value,u=$('authUsername').value.trim(),err=$('authError');
       if(!e||!p){err.textContent='Täida kõik väljad';err.style.display='block';return}
       if(isSignUp&&(!u||u.length<2)){err.textContent='Kasutajanimi peab olema vähemalt 2 tähemärki';err.style.display='block';return}
+      if(isSignUp){const nameCheck=checkContent(u);if(nameCheck){err.textContent='Kasutajanimi sisaldab sobimatut sõna';err.style.display='block';return}}
       if(isSignUp){const now=Date.now();if(now-lastSignupTime<SIGNUP_COOLDOWN){err.textContent='Oota veidi enne uue konto loomist';err.style.display='block';return}}
       $('authSubmit').textContent='Oota...';
       try{
@@ -487,6 +488,33 @@
     }
     function onLogin(){$('navUser').textContent='@'+profile.username;$('authBtn').style.display='none';$('composer').style.display='block';$('voogAuthBtn').style.display='none';$('feed').style.display='block';$('feedGate').style.display='none';loadPosts()}
 
+    // SPAM & PROFANITY FILTER
+    const BLOCKED_WORDS=['kurat','perse','vittu','vitt','türa','munn','lits','lort','pede','homo','neeger','tibla','neger','raisk','persse','sitt','sitta','sitane','putsi','fuck','shit','bitch','cunt','nigger','faggot','perse','krt','muna','keppi','jobu','debiilik','idioot','loll','tuss','tussu'];
+    const SPAM_PATTERNS=[
+      /(.)\1{4,}/,          // sama täht 5+ korda: aaaaa
+      /https?:\/\/\S+/i,    // lingid
+      /www\.\S+/i,          // www lingid
+      /.+\.(com|net|org|ru|cn|xyz|click|win|top)\b/i, // domeenid
+      /[\u{1F600}-\u{1F9FF}]{4,}/u, // 4+ emoji järjest
+      /[A-ZÕÄÖÜ]{20,}/,     // 20+ suurtähte järjest
+      /(.{3,})\1{2,}/,      // sama fraas 3+ korda
+    ];
+
+    function checkContent(text){
+      const lower=text.toLowerCase().replace(/[0-9@!.,:;_\-*]/g,'');
+      // Sõnafilter
+      for(const w of BLOCKED_WORDS){
+        // Täpne sõna, mitte osaline (nt "kultuur" ei blokeeru "kult" pärast)
+        const regex=new RegExp('\\b'+w+'\\b','i');
+        if(regex.test(lower))return'Postitus sisaldab sobimatut sõna. Palun sõnasta ümber.';
+      }
+      // Spämmi mustrid
+      for(const p of SPAM_PATTERNS){
+        if(p.test(text))return'Postitus näeb välja nagu spämm. Kirjuta selgelt ja lühidalt.';
+      }
+      return null; // OK
+    }
+
     // POSTS
     function updateCount(){const c=$('postBody').value.length;const el=$('charCount');el.textContent=c+' / 300';el.className='char-count'+(c>280?(c>300?' over':' warn'):'')}
 
@@ -496,6 +524,8 @@
       if(now-lastPostTime<POST_COOLDOWN){const secs=Math.ceil((POST_COOLDOWN-(now-lastPostTime))/1000);toast('Oota '+secs+'s enne järgmist postitust');return}
       const body=$('postBody').value.trim();let tag=$('postTag').value.trim();
       if(!body)return;if(body.length>300){toast('Liiga pikk! Max 300 märki');return}
+      const filterResult=checkContent(body);
+      if(filterResult){toast(filterResult);return}
       if(tag&&!tag.startsWith('#'))tag='#'+tag;if(tag==='#')tag='';
       $('postBtn').textContent='...';
       try{
@@ -667,6 +697,8 @@
       const body=input.value.trim();
       if(!body)return;
       if(body.length>300){toast('Liiga pikk!');return}
+      const filterResult=checkContent(body);
+      if(filterResult){toast(filterResult);return}
       if(btn)btn.disabled=true;
       try{
         const{error}=await sb.from('replies').insert({post_id:pid,author_id:user.id,body});
