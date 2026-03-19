@@ -202,7 +202,7 @@
     <div class="kicker">krants.online</div>
     <h1>Eesti avalik mõttevoog</h1>
     <div class="sub">Lühikesed postitused. Kiired reaktsioonid. Päris Eesti voog — ilma algoritmide, suletud gruppide ja pressiteadeteta.</div>
-    <div class="herocta"><a class="btn primary" href="#voog">Võta sõna</a><a class="btn" href="#mis">Vaata, mis see on</a></div>
+    <div class="herocta"><a class="btn primary" href="#voog" onclick="showAuth()">Võta sõna</a><a class="btn" href="#mis">Vaata, mis see on</a></div>
     <div class="hero-grid">
       <div class="card">
         <div class="quote"><strong>Krants</strong> on koht, kus rahvas võib tulla ja korraks päriselt välja öelda, mida ta näeb, mõtleb või haistab.</div>
@@ -231,9 +231,15 @@
         <button class="btn primary small" id="postBtn" onclick="submitPost()">Postita</button>
       </div>
     </div>
-    <div class="tabs"><button class="tab active" onclick="switchTab('uusim',this)">Uusim</button><button class="tab" onclick="switchTab('populaarne',this)">Populaarne</button></div>
+    <div class="tabs" id="feedTabs" style="display:none"><button class="tab active" onclick="switchTab('uusim',this)">Uusim</button><button class="tab" onclick="switchTab('populaarne',this)">Populaarne</button></div>
     <div id="filterBar" style="display:none"></div>
-    <div id="feed"><div class="loading">Laen voogu...</div></div>
+    <div id="feed" style="display:none"></div>
+    <div id="feedGate" class="card" style="text-align:center;padding:40px 24px;margin-top:16px">
+      <div style="font-size:28px;margin-bottom:8px">🔒</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px">Mõttevoog on liikmetele</div>
+      <p style="color:var(--muted);margin-bottom:18px">Loo nimi ja saa ligi Eesti avalikule mõttevoole. Postita, reageeri, arutle.</p>
+      <button class="btn primary" onclick="showAuth()">Loo nimi ja alusta</button>
+    </div>
   </div></section>
 
   <!-- INFO -->
@@ -361,7 +367,8 @@
       sb.auth.signOut();user=null;profile=null;
       $('navUser').textContent='';$('authBtn').textContent='Loo nimi';$('authBtn').style.display='inline-flex';
       $('composer').style.display='none';$('voogAuthBtn').style.display='inline-flex';
-      toast('Oled välja loginud');loadPosts();
+      $('feedTabs').style.display='none';$('feed').style.display='none';$('feedGate').style.display='block';
+      toast('Oled välja loginud');
     }
 
     // DELETE ACCOUNT
@@ -388,8 +395,8 @@
         hideDeleteConfirm();
         $('navUser').textContent='';$('authBtn').textContent='Loo nimi';$('authBtn').style.display='inline-flex';
         $('composer').style.display='none';$('voogAuthBtn').style.display='inline-flex';
+        $('feedTabs').style.display='none';$('feed').style.display='none';$('feedGate').style.display='block';
         toast('Konto kustutatud. Head aega!');
-        loadPosts();
       }catch(x){
         $('deleteError').textContent='Viga: '+x.message;$('deleteError').style.display='block';
         $('deleteBtn').textContent='Kustuta kõik ja lahku';
@@ -417,7 +424,7 @@
         }
       }catch(x){err.textContent=x.message||'Midagi läks valesti';err.style.display='block';$('authSubmit').textContent=isSignUp?'Loo nimi':'Logi sisse'}
     }
-    function onLogin(){$('navUser').textContent='@'+profile.username;$('authBtn').style.display='none';$('composer').style.display='block';$('voogAuthBtn').style.display='none'}
+    function onLogin(){$('navUser').textContent='@'+profile.username;$('authBtn').style.display='none';$('composer').style.display='block';$('voogAuthBtn').style.display='none';$('feedTabs').style.display='flex';$('feed').style.display='block';$('feedGate').style.display='none';loadPosts()}
 
     // POSTS
     function updateCount(){const c=$('postBody').value.length;const el=$('charCount');el.textContent=c+' / 300';el.className='char-count'+(c>280?(c>300?' over':' warn'):'')}
@@ -674,17 +681,17 @@
       try{
         const{data:{session}}=await sb.auth.getSession();
         if(session){user=session.user;const{data:pr}=await sb.from('profiles').select('*').eq('id',session.user.id).single();if(pr){profile=pr;onLogin()}}
-        // Check for deep link ?post=id
+        // Check for deep link ?post=id (show even for visitors)
         const params=new URLSearchParams(window.location.search);
         const postId=params.get('post');
         if(postId){
+          $('feedTabs').style.display='flex';$('feed').style.display='block';$('feedGate').style.display='none';
           await loadSinglePost(postId);
-          loadHeroFeed();
-        }else{
-          await loadPosts();
         }
+        // Always load Pulss
+        await loadHeroFeed();
         setupRealtime();
-      }catch(x){$('feed').innerHTML='<div class="empty"><h3>Ühenduse viga</h3><p>'+x.message+'</p></div>'}
+      }catch(x){console.error(x)}
     }
     init();
   </script>
