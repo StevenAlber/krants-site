@@ -551,6 +551,8 @@
       await loadReplies(pid);
     }
 
+    const VISIBLE_REPLIES=3;
+
     async function loadReplies(pid){
       const{data:replies}=await sb.from('replies').select('*').eq('post_id',pid).order('created_at',{ascending:true});
       if(!replies||!replies.length){
@@ -559,10 +561,19 @@
       const aids=[...new Set(replies.map(r=>r.author_id))];
       const{data:rp}=await sb.from('profiles').select('id,username').in('id',aids);
       if(rp)rp.forEach(p=>profs[p.id]=p);
-      $('rlist-'+pid).innerHTML=replies.map(r=>{
+      const total=replies.length;
+      const html=replies.map((r,i)=>{
         const a=profs[r.author_id],n=a?a.username:'keegi';
-        return '<div class="reply-item"><div class="reply-meta"><strong>@'+esc(n)+'</strong> · '+ago(r.created_at)+'</div><div class="reply-body">'+esc(r.body)+'</div></div>'
+        const hidden=i>=VISIBLE_REPLIES?' style="display:none" data-hidden-reply="'+pid+'"':'';
+        return '<div class="reply-item"'+hidden+'><div class="reply-meta"><span style="color:var(--accent);font-weight:700;margin-right:4px">#'+(i+1)+'</span><strong>@'+esc(n)+'</strong> · '+ago(r.created_at)+'</div><div class="reply-body">'+esc(r.body)+'</div></div>'
       }).join('');
+      const moreBtn=total>VISIBLE_REPLIES?'<button class="post-action" style="margin-top:8px;color:var(--accent2)" onclick="showAllReplies(\''+pid+'\',this)">Näita veel '+(total-VISIBLE_REPLIES)+' vastust</button>':'';
+      $('rlist-'+pid).innerHTML=html+moreBtn;
+    }
+
+    function showAllReplies(pid,btn){
+      document.querySelectorAll('[data-hidden-reply="'+pid+'"]').forEach(el=>el.style.display='');
+      if(btn)btn.remove();
     }
 
     async function submitReply(pid){
