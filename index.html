@@ -270,7 +270,7 @@
     const sb=supabase.createClient(SB_URL,SB_KEY);
     let user=null,profile=null,isSignUp=true,tab='uusim',profs={};
 
-    // ── FIX: track which reply sections are open so loadPosts() won't collapse them ──
+    // Track which reply sections are open so loadPosts() won't collapse them
     const openReplies=new Set();
 
     // THEME
@@ -349,21 +349,38 @@
         return '<div class="post-card"><div class="post-meta"><span class="post-handle">@'+esc(n)+'</span>'+tg+'<span>'+t+'</span></div><div class="post-body">'+esc(p.body)+'</div><div class="post-actions"><button class="post-action'+uc+'" onclick="react(\''+p.id+'\',1)">▲ '+(p.ups||0)+'</button><button class="post-action'+dc+'" onclick="react(\''+p.id+'\',-1)">▼ '+(p.downs||0)+'</button><button class="post-action" onclick="toggleReplies(\''+p.id+'\')">💬 <span id="rc-'+p.id+'">'+(p.reply_count||0)+'</span></button></div><div class="replies-section" id="replies-'+p.id+'"><div id="rlist-'+p.id+'"></div>'+(user?'<div class="reply-composer"><textarea class="reply-input" id="rinput-'+p.id+'" placeholder="Vasta..." rows="1"></textarea><button class="reply-send" id="rsend-'+p.id+'" onclick="submitReply(\''+p.id+'\')">Vasta</button></div>':'')+'</div></div>'
       }).join('');
 
-      // ── FIX: re-open reply sections that were open before re-render ──
+      // Re-open reply sections that were open before re-render
       for(const pid of openReplies){
         const el=$('replies-'+pid);
         if(el){
           el.classList.add('open');
-          loadReplies(pid); // reload replies content too
+          loadReplies(pid);
         }else{
-          openReplies.delete(pid); // post no longer visible, clean up
+          openReplies.delete(pid);
         }
       }
 
-      $('heroFeed').innerHTML=posts.slice(0,3).map(p=>{
+      // Update hero feed too
+      renderHeroFeed(posts);
+    }
+
+    // Render hero feed from given posts array (avoids extra DB call)
+    function renderHeroFeed(posts){
+      const top3=posts.slice(0,3);
+      $('heroFeed').innerHTML=top3.map(p=>{
         const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="hp-t">'+esc(p.tag)+'</span>':'';
         return '<div class="hp"><div class="hp-m"><span class="hp-h">@'+esc(n)+'</span><span>'+t+'</span></div><p>'+tg+esc(p.body)+'</p><div class="hp-a"><span>▲ '+(p.ups||0)+'</span><span>💬 '+(p.reply_count||0)+'</span></div></div>'
       }).join('');
+    }
+
+    // Standalone hero feed refresh (fetches fresh data from DB)
+    async function loadHeroFeed(){
+      const{data:posts}=await sb.from('posts').select('*').order('created_at',{ascending:false}).limit(3);
+      if(!posts||!posts.length)return;
+      const aids=[...new Set(posts.map(p=>p.author_id))];
+      const{data:prs}=await sb.from('profiles').select('id,username').in('id',aids);
+      if(prs)prs.forEach(p=>profs[p.id]=p);
+      renderHeroFeed(posts);
     }
 
     // REPLIES
@@ -372,11 +389,11 @@
       if(!el)return;
       if(el.classList.contains('open')){
         el.classList.remove('open');
-        openReplies.delete(pid); // ── FIX: untrack when closed
+        openReplies.delete(pid);
         return;
       }
       el.classList.add('open');
-      openReplies.add(pid); // ── FIX: track as open
+      openReplies.add(pid);
       await loadReplies(pid);
     }
 
@@ -407,35 +424,22 @@
         if(error)throw error;
         input.value='';
 
-        // ── FIX: reload replies list immediately ──
+        // Reload replies list immediately
         await loadReplies(pid);
 
-        // ── FIX: fetch fresh reply_count from DB (trigger sets the correct value) ──
+        // Fetch fresh reply_count from DB (trigger sets the correct value)
         const{data:post}=await sb.from('posts').select('reply_count').eq('id',pid).single();
         if(post){
           const rc=$('rc-'+pid);
           if(rc)rc.textContent=post.reply_count||0;
-          // also update hero feed if visible
-          const heroEl=document.querySelector('#heroFeed');
-          if(heroEl)loadHeroFeed(); // lightweight hero-only refresh
         }
+
+        // FIX: Update Rahvuslik Pulss with small delay so DB trigger has finished
+        setTimeout(()=>loadHeroFeed(),500);
+
         toast('Vastatud!');
       }catch(x){toast('Viga: '+x.message)}
       finally{if(btn)btn.disabled=false;}
-    }
-
-    // ── Lightweight hero feed refresh without touching main feed ──
-    async function loadHeroFeed(){
-      let q=sb.from('posts').select('*').order('created_at',{ascending:false}).limit(3);
-      const{data:posts}=await q;
-      if(!posts||!posts.length)return;
-      const aids=[...new Set(posts.map(p=>p.author_id))];
-      const{data:prs}=await sb.from('profiles').select('id,username').in('id',aids);
-      if(prs)prs.forEach(p=>profs[p.id]=p);
-      $('heroFeed').innerHTML=posts.map(p=>{
-        const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="hp-t">'+esc(p.tag)+'</span>':'';
-        return '<div class="hp"><div class="hp-m"><span class="hp-h">@'+esc(n)+'</span><span>'+t+'</span></div><p>'+tg+esc(p.body)+'</p><div class="hp-a"><span>▲ '+(p.ups||0)+'</span><span>💬 '+(p.reply_count||0)+'</span></div></div>'
-      }).join('');
     }
 
     async function react(pid,v){
@@ -450,23 +454,25 @@
 
     function switchTab(t,el){tab=t;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');loadPosts()}
 
+    // REALTIME
     function setupRealtime(){
       sb.channel('krants-live')
         .on('postgres_changes',{event:'INSERT',schema:'public',table:'posts'},()=>loadPosts())
-        // ── FIX: replies realtime — only update the specific post counter, don't reload all ──
         .on('postgres_changes',{event:'INSERT',schema:'public',table:'replies'},async(payload)=>{
           const pid=payload.new?.post_id;
           if(!pid)return;
-          // fetch updated count for just this post
+          // Fetch updated count for just this post
           const{data:post}=await sb.from('posts').select('reply_count').eq('id',pid).single();
           if(post){
             const rc=$('rc-'+pid);
             if(rc)rc.textContent=post.reply_count||0;
           }
-          // if this reply section is open and the reply was from someone else, refresh replies list
+          // If this reply section is open and the reply was from someone else, refresh replies list
           if(openReplies.has(pid)&&(!user||payload.new?.author_id!==user.id)){
             loadReplies(pid);
           }
+          // FIX: Always update Rahvuslik Pulss when any reply comes in
+          loadHeroFeed();
         })
         .subscribe();
     }
