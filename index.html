@@ -681,10 +681,10 @@
         if(post){
           const rc=$('rc-'+pid);
           if(rc)rc.textContent=post.reply_count||0;
+          // Update cache silently (no full re-render to avoid visual jump)
+          const cached=cachedHeroPosts.find(p=>p.id===pid);
+          if(cached)cached.reply_count=post.reply_count;
         }
-
-        // FIX: Update Rahvuslik Pulss with small delay so DB trigger has finished
-        setTimeout(()=>loadHeroFeed(),500);
 
         toast('Vastatud!');
       }catch(x){toast('Viga: '+x.message)}
