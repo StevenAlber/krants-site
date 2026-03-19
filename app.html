@@ -27,7 +27,7 @@
 
     body {
       font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
-      background: var(--bg);
+      background: radial-gradient(circle at 20% 0%, #1a202c 0, #0b0c0f 45%), var(--bg);
       color: var(--text);
       line-height: 1.55;
       min-height: 100vh;
@@ -79,8 +79,9 @@
 
     /* COMPOSER */
     .composer {
-      background: var(--panel); border: 1px solid rgba(255,255,255,.07);
+      background: rgba(23,26,33,.65); border: 1px solid rgba(255,255,255,.07);
       border-radius: 20px; padding: 18px; margin: 20px 0;
+      backdrop-filter: blur(8px);
     }
     .composer textarea {
       width: 100%; background: transparent; border: none; color: var(--text);
@@ -105,9 +106,9 @@
     /* FEED */
     .feed { padding-bottom: 80px; }
     .post-card {
-      background: var(--panel); border: 1px solid rgba(255,255,255,.07);
+      background: rgba(23,26,33,.65); border: 1px solid rgba(255,255,255,.07);
       border-radius: 18px; padding: 18px; margin-bottom: 12px;
-      transition: border-color .2s;
+      transition: border-color .2s; backdrop-filter: blur(8px);
     }
     .post-card:hover { border-color: rgba(255,255,255,.12); }
     .post-meta {
