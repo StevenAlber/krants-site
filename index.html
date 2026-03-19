@@ -102,7 +102,13 @@
     .post-card{background:var(--panel);border:1px solid var(--card-border);border-radius:18px;padding:18px;margin-bottom:12px;transition:background .3s,border-color .2s;backdrop-filter:blur(6px)}
     .post-card:hover{border-color:var(--card-hover)}
     .post-meta{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted);margin-bottom:10px}
-    .post-tag{display:inline-flex;padding:3px 8px;border:1px solid var(--tag-border);border-radius:999px;font-size:11px;color:var(--accent2)}
+    .post-tag{display:inline-flex;padding:3px 8px;border:1px solid var(--tag-border);border-radius:999px;font-size:11px;color:var(--accent2);cursor:pointer;transition:.15s}
+    .post-tag:hover{background:rgba(120,166,255,.1)}
+    .filter-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;margin-bottom:12px;background:var(--panel);border:1px solid var(--card-border);border-radius:14px;font-size:14px;backdrop-filter:blur(6px)}
+    .filter-bar .filter-tag{color:var(--accent2);font-weight:700}
+    .filter-clear{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;font-family:inherit;padding:4px 8px;border-radius:8px;transition:.15s}
+    .filter-clear:hover{color:var(--text);background:var(--input-bg)}
+    .post-action .share-icon{font-size:12px}
     .post-body{font-size:16px;color:var(--soft);line-height:1.6;word-break:break-word}
     .post-actions{display:flex;gap:16px;margin-top:12px;padding-top:10px;border-top:1px solid var(--divider)}
     .post-action{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);cursor:pointer;background:none;border:none;font-family:inherit;transition:.15s}
@@ -127,7 +133,8 @@
     .hp{padding:14px 20px;border-top:1px solid var(--divider)}
     .hp:first-child{border-top:none}
     .hp-m{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted);margin-bottom:6px}
-    .hp-t{display:inline-flex;padding:3px 7px;border:1px solid var(--tag-border);border-radius:999px;font-size:11px;color:var(--accent2);margin-right:6px}
+    .hp-t{display:inline-flex;padding:3px 7px;border:1px solid var(--tag-border);border-radius:999px;font-size:11px;color:var(--accent2);margin-right:6px;cursor:pointer;transition:.15s}
+    .hp-t:hover{background:rgba(120,166,255,.1)}
     .hp p{margin:0;color:var(--soft);font-size:14px}
     .hp-a{display:flex;gap:14px;margin-top:8px;color:var(--muted);font-size:12px}
 
@@ -225,6 +232,7 @@
       </div>
     </div>
     <div class="tabs"><button class="tab active" onclick="switchTab('uusim',this)">Uusim</button><button class="tab" onclick="switchTab('populaarne',this)">Populaarne</button></div>
+    <div id="filterBar" style="display:none"></div>
     <div id="feed"><div class="loading">Laen voogu...</div></div>
   </div></section>
 
@@ -318,7 +326,7 @@
     const SB_URL='https://meqkljecfrbsvzdyafrr.supabase.co';
     const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1lcWtsamVjZnJic3Z6ZHlhZnJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4ODE5MTcsImV4cCI6MjA4OTQ1NzkxN30.H4nlKFpYI_EmksnBLK7NQURhTw26-BrdM81kb9FctpE';
     const sb=supabase.createClient(SB_URL,SB_KEY);
-    let user=null,profile=null,isSignUp=true,tab='uusim',profs={};
+    let user=null,profile=null,isSignUp=true,tab='uusim',profs={},activeTag=null;
 
     // Track which reply sections are open so loadPosts() won't collapse them
     const openReplies=new Set();
@@ -425,8 +433,18 @@
 
     async function loadPosts(){
       let q=sb.from('posts').select('*');
+      if(activeTag)q=q.eq('tag',activeTag);
       if(tab==='uusim')q=q.order('created_at',{ascending:false});else q=q.order('ups',{ascending:false});
       q=q.limit(50);
+
+      // Update filter bar
+      if(activeTag){
+        $('filterBar').style.display='flex';
+        $('filterBar').className='filter-bar';
+        $('filterBar').innerHTML='<span>Filtreerib:</span><span class="filter-tag">'+esc(activeTag)+'</span><button class="filter-clear" onclick="clearFilter()">✕ Tühjenda</button>';
+      }else{
+        $('filterBar').style.display='none';
+      }
       const{data:posts,error}=await q;
       if(error){$('feed').innerHTML='<div class="empty"><h3>Viga</h3><p>'+error.message+'</p></div>';return}
       if(!posts||!posts.length){
@@ -439,9 +457,9 @@
       if(user){const{data:rx}=await sb.from('reactions').select('post_id,value').eq('user_id',user.id);if(rx)rx.forEach(r=>ur[r.post_id]=r.value)}
 
       $('feed').innerHTML=posts.map(p=>{
-        const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="post-tag">'+esc(p.tag)+'</span>':'',
+        const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="post-tag" onclick="filterByTag(\''+esc(p.tag)+'\')">'+esc(p.tag)+'</span>':'',
           rx=ur[p.id],uc=rx===1?' liked':'',dc=rx===-1?' disliked':'';
-        return '<div class="post-card"><div class="post-meta"><span class="post-handle" onclick="showProfile(\''+p.author_id+'\')">@'+esc(n)+'</span>'+tg+'<span>'+t+'</span></div><div class="post-body">'+esc(p.body)+'</div><div class="post-actions"><button class="post-action'+uc+'" onclick="react(\''+p.id+'\',1)">▲ '+(p.ups||0)+'</button><button class="post-action'+dc+'" onclick="react(\''+p.id+'\',-1)">▼ '+(p.downs||0)+'</button><button class="post-action" onclick="toggleReplies(\''+p.id+'\')">💬 <span id="rc-'+p.id+'">'+(p.reply_count||0)+'</span></button></div><div class="replies-section" id="replies-'+p.id+'"><div id="rlist-'+p.id+'"></div>'+(user?'<div class="reply-composer"><textarea class="reply-input" id="rinput-'+p.id+'" placeholder="Vasta..." rows="1"></textarea><button class="reply-send" id="rsend-'+p.id+'" onclick="submitReply(\''+p.id+'\')">Vasta</button></div>':'')+'</div></div>'
+        return '<div class="post-card" id="post-'+p.id+'"><div class="post-meta"><span class="post-handle" onclick="showProfile(\''+p.author_id+'\')">@'+esc(n)+'</span>'+tg+'<span>'+t+'</span></div><div class="post-body">'+esc(p.body)+'</div><div class="post-actions"><button class="post-action'+uc+'" onclick="react(\''+p.id+'\',1)">▲ '+(p.ups||0)+'</button><button class="post-action'+dc+'" onclick="react(\''+p.id+'\',-1)">▼ '+(p.downs||0)+'</button><button class="post-action" onclick="toggleReplies(\''+p.id+'\')">💬 <span id="rc-'+p.id+'">'+(p.reply_count||0)+'</span></button><button class="post-action" onclick="sharePost(\''+p.id+'\')"><span class="share-icon">🔗</span> Jaga</button></div><div class="replies-section" id="replies-'+p.id+'"><div id="rlist-'+p.id+'"></div>'+(user?'<div class="reply-composer"><textarea class="reply-input" id="rinput-'+p.id+'" placeholder="Vasta..." rows="1"></textarea><button class="reply-send" id="rsend-'+p.id+'" onclick="submitReply(\''+p.id+'\')">Vasta</button></div>':'')+'</div></div>'
       }).join('');
 
       // Re-open reply sections that were open before re-render
@@ -463,7 +481,7 @@
     function renderHeroFeed(posts){
       const items=posts.slice(0,20);
       $('heroFeed').innerHTML=items.map(p=>{
-        const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="hp-t">'+esc(p.tag)+'</span>':'';
+        const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="hp-t" onclick="filterByTag(\''+esc(p.tag)+'\')">'+esc(p.tag)+'</span>':'';
         return '<div class="hp"><div class="hp-m"><span class="hp-h" onclick="showProfile(\''+p.author_id+'\')">@'+esc(n)+'</span><span>'+t+'</span></div><p>'+tg+esc(p.body)+'</p><div class="hp-a"><span>▲ '+(p.ups||0)+'</span><span>💬 '+(p.reply_count||0)+'</span></div></div>'
       }).join('');
     }
@@ -578,6 +596,40 @@
 
     function switchTab(t,el){tab=t;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');loadPosts()}
 
+    // TAG FILTER
+    function filterByTag(tag){activeTag=tag;loadPosts();document.querySelector('#voog')?.scrollIntoView({behavior:'smooth'})}
+    function clearFilter(){activeTag=null;loadPosts()}
+
+    // SHARE POST
+    function sharePost(postId){
+      const url=window.location.origin+window.location.pathname+'?post='+postId;
+      if(navigator.share){
+        navigator.share({title:'Krants',url:url}).catch(()=>{});
+      }else{
+        navigator.clipboard.writeText(url).then(()=>toast('Link kopeeritud!')).catch(()=>{
+          // Fallback
+          const tmp=document.createElement('input');tmp.value=url;document.body.appendChild(tmp);tmp.select();document.execCommand('copy');document.body.removeChild(tmp);
+          toast('Link kopeeritud!');
+        });
+      }
+    }
+
+    // DEEP LINK — show single post from ?post=id
+    async function loadSinglePost(postId){
+      const{data:p,error}=await sb.from('posts').select('*').eq('id',postId).single();
+      if(error||!p){toast('Postitust ei leitud');loadPosts();return}
+      const{data:prs}=await sb.from('profiles').select('id,username').in('id',[p.author_id]);
+      if(prs)prs.forEach(pr=>profs[pr.id]=pr);
+      const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="post-tag" onclick="filterByTag(\''+esc(p.tag)+'\')">'+esc(p.tag)+'</span>':'';
+      $('filterBar').style.display='flex';$('filterBar').className='filter-bar';
+      $('filterBar').innerHTML='<span>Üksik postitus</span><button class="filter-clear" onclick="clearDeepLink()">✕ Näita kõiki</button>';
+      $('feed').innerHTML='<div class="post-card" id="post-'+p.id+'"><div class="post-meta"><span class="post-handle" onclick="showProfile(\''+p.author_id+'\')">@'+esc(n)+'</span>'+tg+'<span>'+t+'</span></div><div class="post-body">'+esc(p.body)+'</div><div class="post-actions"><button class="post-action" onclick="react(\''+p.id+'\',1)">▲ '+(p.ups||0)+'</button><button class="post-action" onclick="react(\''+p.id+'\',-1)">▼ '+(p.downs||0)+'</button><button class="post-action" onclick="toggleReplies(\''+p.id+'\')">💬 <span id="rc-'+p.id+'">'+(p.reply_count||0)+'</span></button><button class="post-action" onclick="sharePost(\''+p.id+'\')"><span class="share-icon">🔗</span> Jaga</button></div><div class="replies-section open" id="replies-'+p.id+'"><div id="rlist-'+p.id+'"></div>'+(user?'<div class="reply-composer"><textarea class="reply-input" id="rinput-'+p.id+'" placeholder="Vasta..." rows="1"></textarea><button class="reply-send" id="rsend-'+p.id+'" onclick="submitReply(\''+p.id+'\')">Vasta</button></div>':'')+'</div></div>';
+      openReplies.add(postId);
+      loadReplies(postId);
+      document.querySelector('#voog')?.scrollIntoView({behavior:'smooth'});
+    }
+    function clearDeepLink(){history.pushState(null,'',window.location.pathname);activeTag=null;$('filterBar').style.display='none';loadPosts()}
+
     // REALTIME
     function setupRealtime(){
       sb.channel('krants-live')
@@ -611,7 +663,15 @@
       try{
         const{data:{session}}=await sb.auth.getSession();
         if(session){user=session.user;const{data:pr}=await sb.from('profiles').select('*').eq('id',session.user.id).single();if(pr){profile=pr;onLogin()}}
-        await loadPosts();
+        // Check for deep link ?post=id
+        const params=new URLSearchParams(window.location.search);
+        const postId=params.get('post');
+        if(postId){
+          await loadSinglePost(postId);
+          loadHeroFeed();
+        }else{
+          await loadPosts();
+        }
         setupRealtime();
       }catch(x){$('feed').innerHTML='<div class="empty"><h3>Ühenduse viga</h3><p>'+x.message+'</p></div>'}
     }
