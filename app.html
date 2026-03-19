@@ -6,7 +6,7 @@
   <title>Krants — Eesti avalik mõttevoog</title>
   <meta name="description" content="Krants on eestikeelne avalik mõttevoog. Lühikesed postitused, kiired reaktsioonid, päris Eesti voog." />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800&display=swap" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/supabase/2.39.3/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     :root {
       --bg: #0b0c0f;
@@ -577,19 +577,23 @@
 
     // ========== INIT ==========
     async function init() {
-      // Check existing session
-      const { data: { session } } = await sb.auth.getSession();
-      if (session) {
-        currentUser = session.user;
-        const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
-        if (profile) {
-          currentProfile = profile;
-          onLogin();
+      try {
+        // Check existing session
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) {
+          currentUser = session.user;
+          const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+          if (profile) {
+            currentProfile = profile;
+            onLogin();
+          }
         }
+        
+        await loadPosts();
+        setupRealtime();
+      } catch (err) {
+        document.getElementById('feed').innerHTML = '<div class="empty"><h3>Ühenduse viga</h3><p>' + err.message + '</p></div>';
       }
-      
-      loadPosts();
-      setupRealtime();
     }
 
     init();
