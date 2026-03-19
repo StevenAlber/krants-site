@@ -5,483 +5,312 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Krants — Eesti avalik mõttevoog</title>
   <meta name="description" content="Krants on eestikeelne avalik mõttevoog. Lühikesed postitused, kiired reaktsioonid, päris Eesti voog." />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
-    :root{
-      --bg:#0b0c0f;
-      --bg2:#12141a;
-      --panel:#171a21;
-      --line:#262b36;
-      --text:#e8ebf0;
-      --muted:#9aa3b2;
-      --accent:#c46b3d;
-      --accent2:#78a6ff;
-      --soft:#d9dee8;
-    }
-
-    *{box-sizing:border-box}
-
+    :root{--bg:#0b0c0f;--bg2:#12141a;--panel:#171a21;--line:#262b36;--text:#e8ebf0;--muted:#9aa3b2;--accent:#c46b3d;--accent2:#78a6ff;--soft:#d9dee8;--green:#4ade80;--red:#f87171}
+    *{box-sizing:border-box;margin:0;padding:0}
     html{scroll-behavior:smooth}
-
-    body{
-      margin:0;
-      font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-      background:radial-gradient(circle at 20% 0%, #1a202c 0, #0b0c0f 45%), var(--bg);
-      color:var(--text);
-      line-height:1.55;
-    }
-
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:radial-gradient(circle at 20% 0%,#1a202c 0,#0b0c0f 45%),var(--bg);color:var(--text);line-height:1.55}
     a{text-decoration:none;color:inherit}
-
     .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
-
-    .nav{
-      position:sticky;
-      top:0;
-      z-index:10;
-      background:rgba(11,12,15,.76);
-      backdrop-filter:blur(14px);
-      border-bottom:1px solid rgba(255,255,255,.06)
-    }
-
-    .navin{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      padding:18px 0
-    }
-
-    .logo{
-      display:flex;
-      align-items:center;
-      gap:12px;
-      font-weight:800;
-      letter-spacing:.04em;
-      text-transform:uppercase
-    }
-
-    .dot{
-      width:11px;
-      height:11px;
-      border-radius:50%;
-      background:var(--accent);
-      box-shadow:0 0 20px rgba(196,107,61,.5)
-    }
-
-    .navlinks{
-      display:flex;
-      gap:26px;
-      color:var(--muted);
-      font-size:14px
-    }
-
-    .btn{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      border:1px solid var(--line);
-      padding:13px 18px;
-      border-radius:999px;
-      font-weight:700;
-      transition:.2s
-    }
-
-    .btn.primary{
-      background:linear-gradient(135deg,var(--accent),#d48a63);
-      border:none;
-      color:#fff
-    }
-
-    .btn:hover{
-      transform:translateY(-1px);
-      border-color:#394050
-    }
-
+    .nav{position:sticky;top:0;z-index:100;background:rgba(11,12,15,.82);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,.06)}
+    .navin{display:flex;justify-content:space-between;align-items:center;padding:16px 0}
+    .logo{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+    .dot{width:11px;height:11px;border-radius:50%;background:var(--accent);box-shadow:0 0 20px rgba(196,107,61,.5)}
+    .navlinks{display:flex;gap:26px;color:var(--muted);font-size:14px}
+    .nav-right{display:flex;gap:12px;align-items:center}
+    .nav-user{color:var(--accent2);font-weight:600;font-size:14px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);padding:12px 20px;border-radius:999px;font-weight:700;font-size:14px;transition:.2s;cursor:pointer;font-family:inherit;color:var(--text);background:transparent}
+    .btn:hover{transform:translateY(-1px);border-color:#394050}
+    .btn.primary{background:linear-gradient(135deg,var(--accent),#d48a63);border:none;color:#fff}
+    .btn.primary:hover{opacity:.9}
+    .btn.small{padding:8px 16px;font-size:13px}
+    .btn.ghost{border:none;padding:6px 10px;color:var(--muted)}
+    .btn.ghost:hover{color:var(--text)}
     .hero{padding:48px 0 56px;text-align:center}
-
-    .kicker{
-      color:var(--accent2);
-      font-size:13px;
-      font-weight:700;
-      letter-spacing:.12em;
-      text-transform:uppercase
-    }
-
-    h1{
-      font-size:clamp(42px,8vw,84px);
-      line-height:.95;
-      margin:14px auto 18px;
-      letter-spacing:-.04em
-    }
-
-    .sub{
-      max-width:760px;
-      font-size:clamp(18px,2vw,24px);
-      color:var(--soft);
-      margin:0 auto
-    }
-
-    .herocta{
-      display:flex;
-      gap:14px;
-      flex-wrap:wrap;
-      margin-top:28px;
-      justify-content:center
-    }
-
-    .hero-grid{
-      display:grid;
-      grid-template-columns:1.15fr .85fr;
-      gap:28px;
-      align-items:start;
-      margin-top:42px
-    }
-
-    .card{
-      background:rgba(23,26,33,.8);
-      border:1px solid rgba(255,255,255,.07);
-      border-radius:24px;
-      padding:22px;
-      box-shadow:0 20px 60px rgba(0,0,0,.28)
-    }
-
-    .livefeed{
-      padding:0;
-      overflow:hidden
-    }
-
-    .feedhead{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      padding:18px 20px;
-      border-bottom:1px solid rgba(255,255,255,.06);
-      background:rgba(255,255,255,.02)
-    }
-
-    .feedlist{padding:10px 0}
-
-    .post{
-      padding:16px 20px;
-      border-top:1px solid rgba(255,255,255,.05)
-    }
-
-    .post:first-child{border-top:none}
-
-    .meta{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      font-size:13px;
-      color:var(--muted);
-      margin-bottom:8px
-    }
-
-    .handle{
-      font-weight:700;
-      color:var(--text)
-    }
-
-    .tag{
-      display:inline-flex;
-      padding:4px 8px;
-      border:1px solid rgba(120,166,255,.25);
-      border-radius:999px;
-      font-size:12px;
-      color:var(--accent2);
-      margin-right:8px
-    }
-
-    .post p{
-      margin:0;
-      color:var(--soft)
-    }
-
-    .actions{
-      display:flex;
-      gap:18px;
-      margin-top:10px;
-      color:var(--muted);
-      font-size:13px;
-      flex-wrap:wrap
-    }
-
-    .quote{
-      font-size:14px;
-      color:var(--muted);
-      padding:16px 18px;
-      border-left:2px solid var(--accent);
-      background:rgba(255,255,255,.02);
-      border-radius:14px
-    }
-
-    section{padding:30px 0}
-
-    .section-title{
-      font-size:clamp(28px,4vw,44px);
-      margin:0 0 10px;
-      letter-spacing:-.03em
-    }
-
-    .section-sub{
-      max-width:760px;
-      color:var(--muted);
-      font-size:18px;
-      margin:0 0 26px
-    }
-
-    .grid-3{
-      display:grid;
-      grid-template-columns:repeat(3,1fr);
-      gap:18px
-    }
-
-    .grid-2{
-      display:grid;
-      grid-template-columns:repeat(2,1fr);
-      gap:18px
-    }
-
-    .mini{
-      font-size:14px;
-      color:var(--muted);
-      text-transform:uppercase;
-      letter-spacing:.08em;
-      font-weight:700
-    }
-
-    .big{
-      font-size:24px;
-      font-weight:800;
-      margin:8px 0 10px
-    }
-
+    .kicker{color:var(--accent2);font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+    h1{font-size:clamp(42px,8vw,84px);line-height:.95;margin:14px auto 18px;letter-spacing:-.04em}
+    .sub{max-width:760px;font-size:clamp(18px,2vw,24px);color:var(--soft);margin:0 auto}
+    .herocta{display:flex;gap:14px;flex-wrap:wrap;margin-top:28px;justify-content:center}
+    .card{background:rgba(23,26,33,.7);border:1px solid rgba(255,255,255,.07);border-radius:24px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.28);backdrop-filter:blur(8px)}
+    .hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:28px;align-items:start;margin-top:42px;text-align:left}
+    .quote{font-size:14px;color:var(--muted);padding:16px 18px;border-left:2px solid var(--accent);background:rgba(255,255,255,.02);border-radius:14px}
+    .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+    .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+    .mini{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+    .big{font-size:24px;font-weight:800;margin:8px 0 10px}
     .card p{color:var(--muted);margin:0}
-
-    .manifesto{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:24px;
-      align-items:center
-    }
-
+    .livefeed{padding:0;overflow:hidden}
+    .feedhead{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02)}
+    section{padding:30px 0}
+    .section-title{font-size:clamp(28px,4vw,44px);margin:0 0 10px;letter-spacing:-.03em}
+    .section-sub{max-width:760px;color:var(--muted);font-size:18px;margin:0 0 26px}
+    .manifesto{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:center}
     .manifesto .card{min-height:100%}
-
-    .statement{
-      font-size:clamp(28px,4vw,54px);
-      line-height:1.02;
-      letter-spacing:-.04em;
-      font-weight:800
-    }
-
+    .statement{font-size:clamp(28px,4vw,54px);line-height:1.02;letter-spacing:-.04em;font-weight:800}
     .statement span{color:var(--accent)}
-
-    .features{
-      padding:0;
-      margin:0
-    }
-
-    .features li{
-      list-style:none;
-      padding:0 0 16px;
-      margin:0 0 16px;
-      border-bottom:1px solid rgba(255,255,255,.06)
-    }
-
-    .features li:last-child{
-      border-bottom:none;
-      margin-bottom:0;
-      padding-bottom:0
-    }
-
-    .features strong{
-      display:block;
-      margin-bottom:6px
-    }
-
-    .footer{
-      padding:60px 0 70px;
-      color:var(--muted)
-    }
-
-    .footerbox{
-      display:flex;
-      justify-content:space-between;
-      gap:22px;
-      align-items:flex-end;
-      border-top:1px solid rgba(255,255,255,.08);
-      padding-top:26px
-    }
-
-    @media (max-width: 900px){
-      .hero-grid,.grid-3,.grid-2,.manifesto{grid-template-columns:1fr}
-      .navlinks{display:none}
-      .footerbox{flex-direction:column;align-items:flex-start}
-    }
+    .features{padding:0;margin:0}
+    .features li{list-style:none;padding:0 0 16px;margin:0 0 16px;border-bottom:1px solid rgba(255,255,255,.06)}
+    .features li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+    .features strong{display:block;margin-bottom:6px}
+    .voog-section{padding:40px 0 80px}
+    .voog-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+    .voog-title{font-size:28px;font-weight:800;letter-spacing:-.02em}
+    .composer{background:rgba(23,26,33,.65);border:1px solid rgba(255,255,255,.07);border-radius:20px;padding:18px;margin-bottom:20px;backdrop-filter:blur(8px);display:none}
+    .composer textarea{width:100%;background:transparent;border:none;color:var(--text);font-family:inherit;font-size:16px;resize:none;outline:none;min-height:60px;line-height:1.5}
+    .composer textarea::placeholder{color:var(--muted)}
+    .composer-footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)}
+    .composer-left{display:flex;gap:12px;align-items:center}
+    .tag-input{background:transparent;border:1px solid rgba(120,166,255,.25);border-radius:999px;padding:6px 14px;font-size:13px;color:var(--accent2);font-family:inherit;outline:none;width:180px}
+    .tag-input::placeholder{color:rgba(120,166,255,.4)}
+    .char-count{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+    .char-count.warn{color:var(--accent)}
+    .char-count.over{color:var(--red)}
+    .tabs{display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,.06)}
+    .tab{padding:10px 18px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:.2s;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit}
+    .tab.active{color:var(--text);border-bottom-color:var(--accent)}
+    .tab:hover{color:var(--text)}
+    .post-card{background:rgba(23,26,33,.55);border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:18px;margin-bottom:12px;transition:border-color .2s;backdrop-filter:blur(6px)}
+    .post-card:hover{border-color:rgba(255,255,255,.12)}
+    .post-meta{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted);margin-bottom:10px}
+    .post-handle{font-weight:700;color:var(--text)}
+    .post-tag{display:inline-flex;padding:3px 8px;border:1px solid rgba(120,166,255,.25);border-radius:999px;font-size:11px;color:var(--accent2)}
+    .post-body{font-size:16px;color:var(--soft);line-height:1.6;word-break:break-word}
+    .post-actions{display:flex;gap:16px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.04)}
+    .post-action{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);cursor:pointer;background:none;border:none;font-family:inherit;transition:.15s}
+    .post-action:hover{color:var(--text)}
+    .post-action.liked{color:var(--green)}
+    .post-action.disliked{color:var(--red)}
+    .hp{padding:16px 20px;border-top:1px solid rgba(255,255,255,.05)}
+    .hp:first-child{border-top:none}
+    .hp-m{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted);margin-bottom:8px}
+    .hp-h{font-weight:700;color:var(--text)}
+    .hp-t{display:inline-flex;padding:4px 8px;border:1px solid rgba(120,166,255,.25);border-radius:999px;font-size:12px;color:var(--accent2);margin-right:8px}
+    .hp p{margin:0;color:var(--soft)}
+    .hp-a{display:flex;gap:18px;margin-top:10px;color:var(--muted);font-size:13px}
+    .empty{text-align:center;padding:40px 20px;color:var(--muted)}
+    .empty h3{font-size:18px;color:var(--text);margin-bottom:6px}
+    .loading{text-align:center;padding:30px;color:var(--muted)}
+    .modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:20px}
+    .modal{background:var(--panel);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:32px;width:100%;max-width:400px}
+    .modal h2{font-size:24px;font-weight:800;margin-bottom:6px}
+    .modal p{color:var(--muted);font-size:14px;margin-bottom:20px}
+    .modal input{width:100%;padding:14px 16px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;color:var(--text);font-family:inherit;font-size:15px;outline:none;margin-bottom:12px}
+    .modal input:focus{border-color:var(--accent2)}
+    .modal input::placeholder{color:var(--muted)}
+    .modal .btn{width:100%;margin-top:6px;padding:14px}
+    .modal-switch{text-align:center;margin-top:16px;font-size:14px;color:var(--muted)}
+    .modal-switch a{color:var(--accent2);cursor:pointer}
+    .modal-error{color:var(--red);font-size:13px;margin-bottom:10px;display:none}
+    .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--green);color:#000;padding:12px 24px;border-radius:999px;font-weight:700;font-size:14px;z-index:300;opacity:0;transition:opacity .3s;pointer-events:none}
+    .toast.show{opacity:1}
+    .footer{padding:60px 0 70px;color:var(--muted)}
+    .footerbox{display:flex;justify-content:space-between;gap:22px;align-items:flex-end;border-top:1px solid rgba(255,255,255,.08);padding-top:26px}
+    @media(max-width:900px){.hero-grid,.grid-3,.grid-2,.manifesto{grid-template-columns:1fr}.navlinks{display:none}.footerbox{flex-direction:column;align-items:flex-start}}
   </style>
 </head>
 <body>
-  <nav class="nav">
-    <div class="wrap navin">
-      <div class="logo"><span class="dot"></span> KRANTS</div>
-      <div class="navlinks">
-        <a href="#mis">Mis see on</a>
-        <a href="#toimib">Kuidas toimib</a>
-        <a href="#ai">AI</a>
-        <a href="#liitu">Võta sõna</a>
-      </div>
-      <a class="btn" href="#liitu">Loo nimi</a>
-    </div>
-  </nav>
+  <nav class="nav"><div class="wrap navin">
+    <div class="logo"><span class="dot"></span> KRANTS</div>
+    <div class="navlinks"><a href="#mis">Mis see on</a><a href="#toimib">Kuidas toimib</a><a href="#ai">AI</a><a href="#voog">Voog</a></div>
+    <div class="nav-right"><span class="nav-user" id="navUser"></span><button class="btn small" id="authBtn" onclick="showAuth()">Loo nimi</button></div>
+  </div></nav>
 
   <header class="hero wrap">
     <div class="kicker">krants.online</div>
     <h1>Eesti avalik mõttevoog</h1>
     <div class="sub">Lühikesed postitused. Kiired reaktsioonid. Päris Eesti voog — ilma algoritmide, suletud gruppide ja pressiteadeteta.</div>
-    <div class="herocta">
-      <a class="btn primary" href="#liitu">Võta sõna</a>
-      <a class="btn" href="#mis">Vaata, mis see on</a>
-    </div>
-
+    <div class="herocta"><a class="btn primary" href="#voog">Võta sõna</a><a class="btn" href="#mis">Vaata, mis see on</a></div>
     <div class="hero-grid">
       <div class="card">
         <div class="quote"><strong>Krants</strong> on koht, kus rahvas võib tulla ja korraks päriselt välja öelda, mida ta näeb, mõtleb või haistab.</div>
         <div style="margin-top:18px" class="grid-2">
-          <div class="card" style="background:rgba(255,255,255,.02)">
-            <div class="mini">Vorm</div>
-            <div class="big">300 märki</div>
-            <p>Üks mõte korraga. Kiire, lühike, loetav.</p>
-          </div>
-          <div class="card" style="background:rgba(255,255,255,.02)">
-            <div class="mini">Toon</div>
-            <div class="big">Toores, mitte tühi</div>
-            <p>Ei pea kõlama nagu pressiesindaja, aga peab midagi kandma.</p>
-          </div>
+          <div class="card" style="background:rgba(255,255,255,.02)"><div class="mini">Vorm</div><div class="big">300 märki</div><p>Üks mõte korraga. Kiire, lühike, loetav.</p></div>
+          <div class="card" style="background:rgba(255,255,255,.02)"><div class="mini">Toon</div><div class="big">Toores, mitte tühi</div><p>Ei pea kõlama nagu pressiesindaja, aga peab midagi kandma.</p></div>
         </div>
       </div>
-
       <div class="card livefeed">
-        <div class="feedhead">
-          <strong style="color:var(--accent)">Rahvuslik pulss</strong>
-          <span style="color:var(--muted);font-size:13px">otsevoog</span>
-        </div>
-        <div class="feedlist">
-          <div class="post">
-            <div class="meta"><span class="handle">@Kati48</span><span>2 min tagasi</span></div>
-            <p><span class="tag">#automaks</span>Kõik vaidlevad numbrite üle, aga keegi ei räägi sellest, mis juhtub maapiirkonna liikumisvabadusega.</p>
-            <div class="actions"><span>vastused 18</span><span>edasi 7</span><span>teemasse lisatud</span></div>
-          </div>
-          <div class="post">
-            <div class="meta"><span class="handle">@meretuul</span><span>11 min tagasi</span></div>
-            <p><span class="tag">#tallinn</span>Kui linn teeb otsuse öösel ja hommikuks on kõik ümber ehitatud, siis see ei ole juhtimine, see on refleks.</p>
-            <div class="actions"><span>vastused 31</span><span>edasi 12</span><span>AI kokkuvõte</span></div>
-          </div>
-          <div class="post">
-            <div class="meta"><span class="handle">@Ulfa_22</span><span>24 min tagasi</span></div>
-            <p><span class="tag">#ilm</span>Tuul ei ole uudis. Uudis on see, kuidas pool valda saab sellest teada alles siis, kui elekter juba läinud on.</p>
-            <div class="actions"><span>vastused 9</span><span>edasi 4</span><span>teema kasvab</span></div>
-          </div>
-        </div>
+        <div class="feedhead"><strong style="color:var(--accent)">Rahvuslik pulss</strong><span style="color:var(--muted);font-size:13px">otsevoog</span></div>
+        <div id="heroFeed" style="padding:10px 0"><div class="loading">Laen...</div></div>
       </div>
     </div>
   </header>
 
-  <section id="mis">
-    <div class="wrap">
-      <h2 class="section-title">Rahva oma ruum</h2>
-      <p class="section-sub">Koht teravatele, lühikestele ja päris mõtetele.</p>
-      <div class="grid-3">
-        <div class="card">
-          <div class="mini">Lühike</div>
-          <div class="big">Üks mõte korraga</div>
-          <p>Postitused on lühikesed, et voog jääks kiireks ja loetavaks. Mitte esseed. Mitte pressitekstid.</p>
-        </div>
-        <div class="card">
-          <div class="mini">Avalik</div>
-          <div class="big">Mitte suletud mull</div>
-          <p>See ei ela kinnistes gruppides ega kanalites. See on ühine pind, kus teemad saavad nähtavaks.</p>
-        </div>
-        <div class="card">
-          <div class="mini">Elus</div>
-          <div class="big">Päris Eesti närv</div>
-          <p>Vihjed, tähelepanekud, iroonia, hoiatused, mini-analüüsid. AI ei kirjuta sinu eest. Ta aitab sinu mõttel õigete inimesteni jõuda.</p>
-        </div>
-      </div>
+  <section id="mis"><div class="wrap">
+    <h2 class="section-title">Rahva oma ruum</h2>
+    <p class="section-sub">Koht teravatele, lühikestele ja päris mõtetele.</p>
+    <div class="grid-3">
+      <div class="card"><div class="mini">Lühike</div><div class="big">Üks mõte korraga</div><p>Postitused on lühikesed, et voog jääks kiireks ja loetavaks. Mitte esseed. Mitte pressitekstid.</p></div>
+      <div class="card"><div class="mini">Avalik</div><div class="big">Mitte suletud mull</div><p>See ei ela kinnistes gruppides ega kanalites. See on ühine pind, kus teemad saavad nähtavaks.</p></div>
+      <div class="card"><div class="mini">Elus</div><div class="big">Päris Eesti närv</div><p>Vihjed, tähelepanekud, iroonia, hoiatused, mini-analüüsid. AI ei kirjuta sinu eest. Ta aitab sinu mõttel õigete inimesteni jõuda.</p></div>
     </div>
-  </section>
+  </div></section>
 
-  <section id="toimib">
-    <div class="wrap">
-      <h2 class="section-title">Kuidas see toimib</h2>
-      <p class="section-sub">Võta sõna. Jäta jälg. Vaata, kuhu voog liigub.</p>
-      <div class="grid-3">
-        <div class="card">
-          <div class="mini">1</div>
-          <div class="big">Postita</div>
-          <p>Kirjuta lühike mõte, tähelepanek, link või küsimus. Mitte täiuslikult. Lihtsalt selgelt.</p>
-        </div>
-        <div class="card">
-          <div class="mini">2</div>
-          <div class="big">Reageeri</div>
-          <p>Teised vastavad, lükkavad edasi, vaidlevad, täiendavad või toovad uue nurga sisse.</p>
-        </div>
-        <div class="card">
-          <div class="mini">3</div>
-          <div class="big">Näe signaali</div>
-          <p>AI klasterdab teemasid, filtreerib spämmi ning aitab näha, mis Eestis päriselt pinnale tõuseb.</p>
-        </div>
-      </div>
+  <section id="toimib"><div class="wrap">
+    <h2 class="section-title">Kuidas see toimib</h2>
+    <p class="section-sub">Võta sõna. Jäta jälg. Vaata, kuhu voog liigub.</p>
+    <div class="grid-3">
+      <div class="card"><div class="mini">1</div><div class="big">Postita</div><p>Kirjuta lühike mõte, tähelepanek, link või küsimus. Mitte täiuslikult. Lihtsalt selgelt.</p></div>
+      <div class="card"><div class="mini">2</div><div class="big">Reageeri</div><p>Teised vastavad, lükkavad edasi, vaidlevad, täiendavad või toovad uue nurga sisse.</p></div>
+      <div class="card"><div class="mini">3</div><div class="big">Näe signaali</div><p>AI klasterdab teemasid, filtreerib spämmi ning aitab näha, mis Eestis päriselt pinnale tõuseb.</p></div>
     </div>
-  </section>
+  </div></section>
 
-  <section id="ai">
-    <div class="wrap manifesto">
-      <div>
-        <div class="kicker">AI ei haugu sinu eest</div>
-        <div class="statement">AI aitab <span>kuulata</span></div>
-        <p class="section-sub" style="margin-top:16px">Krantsi AI ei kirjuta sulle mõtteid ette. Ta teeb voost kasutatava ruumi.</p>
-      </div>
-      <div class="card">
-        <ul class="features">
-          <li><strong>Spämmifilter</strong><span style="color:var(--muted)"> eemaldab rämpsu enne, kui see voogu tapab.</span></li>
-          <li><strong>Teemade klasterdamine</strong><span style="color:var(--muted)"> koondab killud ühtseks aruteluks.</span></li>
-          <li><strong>Hommikuülevaade</strong><span style="color:var(--muted)"> näitab, mida Eesti eile päriselt arutas.</span></li>
-          <li><strong>Signaal vs müra</strong><span style="color:var(--muted)"> tõstab esile selle, mis kannab, mitte lihtsalt karjub.</span></li>
-        </ul>
-      </div>
-    </div>
-  </section>
+  <section id="ai"><div class="wrap manifesto">
+    <div><div class="kicker">AI ei haugu sinu eest</div><div class="statement">AI aitab <span>kuulata</span></div><p class="section-sub" style="margin-top:16px">Krantsi AI ei kirjuta sulle mõtteid ette. Ta teeb voost kasutatava ruumi.</p></div>
+    <div class="card"><ul class="features">
+      <li><strong>Spämmifilter</strong><span style="color:var(--muted)"> eemaldab rämpsu enne, kui see voogu tapab.</span></li>
+      <li><strong>Teemade klasterdamine</strong><span style="color:var(--muted)"> koondab killud ühtseks aruteluks.</span></li>
+      <li><strong>Hommikuülevaade</strong><span style="color:var(--muted)"> näitab, mida Eesti eile päriselt arutas.</span></li>
+      <li><strong>Signaal vs müra</strong><span style="color:var(--muted)"> tõstab esile selle, mis kannab, mitte lihtsalt karjub.</span></li>
+    </ul></div>
+  </div></section>
 
-  <section>
-    <div class="wrap">
-      <div class="card" style="padding:30px 28px;text-align:center">
-        <div class="statement" style="font-size:clamp(26px,4vw,46px)">Krants ei ole koerte<br>varjupaik</div>
-        <p class="section-sub" style="margin:14px auto 0;max-width:640px">Siin ei pea kõlama nagu dresseeritud puudel. Sa ei pea oma mõtteid kirjutama parketipõhiselt. Enne postitamist pole vaja teha näotuvastust. Krants on koht, kus rahvas võib tulla ja päriselt välja öelda, mida ta mõtleb, haistab, näeb või arvab.</p>
-      </div>
+  <section><div class="wrap">
+    <div class="card" style="padding:30px 28px;text-align:center">
+      <div class="statement" style="font-size:clamp(26px,4vw,46px)">Krants ei ole koerte<br>varjupaik</div>
+      <p class="section-sub" style="margin:14px auto 0;max-width:640px">Siin ei pea kõlama nagu dresseeritud puudel. Sa ei pea oma mõtteid kirjutama parketipõhiselt. Enne postitamist pole vaja teha näotuvastust. Krants on koht, kus rahvas võib tulla ja päriselt välja öelda, mida ta mõtleb, haistab, näeb või arvab.</p>
     </div>
-  </section>
+  </div></section>
 
-  <section id="liitu">
-    <div class="wrap">
-      <div class="card" style="text-align:center;padding:38px 24px">
-        <div class="kicker">Krants on avatud</div>
-        <h2 class="section-title" style="margin-top:8px">Tule sisse ja võta lõhn üles. Niuksu, haugu ning lõrise, kui vaja</h2>
-        <p class="section-sub" style="margin-left:auto;margin-right:auto">Loo oma nimi ja saa esimeste seas ligi Eesti uuele avalikule mõttevoole.</p>
-        <div class="herocta" style="justify-content:center">
-          <a class="btn primary" href="#">Loo oma nimi</a>
-          <a class="btn" href="#">Vaata voogu</a>
-        </div>
+  <!-- PÄRIS VOOG -->
+  <section id="voog" class="voog-section"><div class="wrap">
+    <div class="voog-header">
+      <div class="voog-title" style="color:var(--accent)">Mõttevoog</div>
+      <button class="btn small primary" onclick="showAuth()" id="voogAuthBtn">Loo nimi ja postita</button>
+    </div>
+    <div class="composer" id="composer">
+      <textarea id="postBody" placeholder="Mis sul mõttes on? (kuni 300 märki)" maxlength="300" oninput="updateCount()"></textarea>
+      <div class="composer-footer">
+        <div class="composer-left"><input type="text" class="tag-input" id="postTag" placeholder="#teema (max 40 märki)" maxlength="40"><span class="char-count" id="charCount">0 / 300</span></div>
+        <button class="btn primary small" id="postBtn" onclick="submitPost()">Postita</button>
       </div>
     </div>
-  </section>
+    <div class="tabs"><button class="tab active" onclick="switchTab('uusim',this)">Uusim</button><button class="tab" onclick="switchTab('populaarne',this)">Populaarne</button></div>
+    <div id="feed"><div class="loading">Laen voogu...</div></div>
+  </div></section>
 
-  <footer class="footer">
-    <div class="wrap footerbox">
-      <div>
-        <strong style="color:var(--text)">KRANTS.ONLINE</strong>
-        <div style="margin-top:8px">Lühikesed postitused. Kiired reaktsioonid. Päris Eesti voog.</div>
-      </div>
-      <div>© 2026 Krants</div>
+  <section><div class="wrap">
+    <div class="card" style="text-align:center;padding:38px 24px">
+      <div class="kicker">Krants on avatud</div>
+      <h2 class="section-title" style="margin-top:8px">Tule sisse ja võta lõhn üles. Niuksu, haugu ning lõrise, kui vaja</h2>
+      <p class="section-sub" style="margin-left:auto;margin-right:auto">Loo oma nimi ja saa esimeste seas ligi Eesti uuele avalikule mõttevoole.</p>
+      <div class="herocta" style="justify-content:center"><a class="btn primary" href="#voog" onclick="showAuth()">Loo oma nimi</a><a class="btn" href="#voog">Vaata voogu</a></div>
     </div>
-  </footer>
+  </div></section>
+
+  <footer class="footer"><div class="wrap footerbox">
+    <div><strong style="color:var(--text)">KRANTS.ONLINE</strong><div style="margin-top:8px">Lühikesed postitused. Kiired reaktsioonid. Päris Eesti voog.</div></div>
+    <div>© 2026 Krants</div>
+  </div></footer>
+
+  <div class="modal-overlay" id="authModal"><div class="modal">
+    <h2 id="authTitle">Loo nimi</h2>
+    <p id="authSub">Vali pseudonüüm ja hakka postitama</p>
+    <div class="modal-error" id="authError"></div>
+    <input type="text" id="authUsername" placeholder="Kasutajanimi (nt Kati48)">
+    <input type="email" id="authEmail" placeholder="E-mail">
+    <input type="password" id="authPassword" placeholder="Parool">
+    <button class="btn primary" id="authSubmit" onclick="handleAuth()">Loo nimi</button>
+    <div class="modal-switch" id="authSwitch">Juba olemas? <a onclick="toggleAuthMode()">Logi sisse</a></div>
+    <button class="btn ghost" onclick="hideAuth()" style="width:100%;margin-top:8px">Tagasi</button>
+  </div></div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const SB_URL='https://meqkljecfrbsvzdyafrr.supabase.co';
+    const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1lcWtsamVjZnJic3Z6ZHlhZnJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4ODE5MTcsImV4cCI6MjA4OTQ1NzkxN30.H4nlKFpYI_EmksnBLK7NQURhTw26-BrdM81kb9FctpE';
+    const sb=supabase.createClient(SB_URL,SB_KEY);
+    let user=null,profile=null,isSignUp=true,tab='uusim',profs={};
+
+    function showAuth(){if(user){sb.auth.signOut();user=null;profile=null;$('navUser').textContent='';$('authBtn').textContent='Loo nimi';$('composer').style.display='none';$('voogAuthBtn').style.display='inline-flex';toast('Oled välja loginud');return}$('authModal').style.display='flex';$('authError').style.display='none'}
+    function hideAuth(){$('authModal').style.display='none'}
+    function toggleAuthMode(){isSignUp=!isSignUp;$('authTitle').textContent=isSignUp?'Loo nimi':'Logi sisse';$('authSub').textContent=isSignUp?'Vali pseudonüüm ja hakka postitama':'Tere tulemast tagasi';$('authUsername').style.display=isSignUp?'block':'none';$('authSubmit').textContent=isSignUp?'Loo nimi':'Logi sisse';$('authSwitch').innerHTML=isSignUp?'Juba olemas? <a onclick="toggleAuthMode()">Logi sisse</a>':'Pole kontot? <a onclick="toggleAuthMode()">Loo nimi</a>';$('authError').style.display='none'}
+
+    async function handleAuth(){
+      const e=$('authEmail').value.trim(),p=$('authPassword').value,u=$('authUsername').value.trim(),err=$('authError');
+      if(!e||!p){err.textContent='Täida kõik väljad';err.style.display='block';return}
+      if(isSignUp&&(!u||u.length<2)){err.textContent='Kasutajanimi peab olema vähemalt 2 tähemärki';err.style.display='block';return}
+      $('authSubmit').textContent='Oota...';
+      try{
+        if(isSignUp){
+          const{data:ex}=await sb.from('profiles').select('username').eq('username',u).single();
+          if(ex){err.textContent='See kasutajanimi on juba võetud';err.style.display='block';$('authSubmit').textContent='Loo nimi';return}
+          const{data,error}=await sb.auth.signUp({email:e,password:p});if(error)throw error;
+          const{error:pe}=await sb.from('profiles').insert({id:data.user.id,username:u});if(pe)throw pe;
+          user=data.user;profile={username:u};hideAuth();onLogin();toast('Tere tulemast, @'+u+'!');
+        }else{
+          const{data,error}=await sb.auth.signInWithPassword({email:e,password:p});if(error)throw error;
+          user=data.user;const{data:pr}=await sb.from('profiles').select('*').eq('id',data.user.id).single();
+          profile=pr;hideAuth();onLogin();toast('Tere tagasi, @'+pr.username+'!');
+        }
+      }catch(x){err.textContent=x.message||'Midagi läks valesti';err.style.display='block';$('authSubmit').textContent=isSignUp?'Loo nimi':'Logi sisse'}
+    }
+    function onLogin(){$('navUser').textContent='@'+profile.username;$('authBtn').textContent='Logi välja';$('composer').style.display='block';$('voogAuthBtn').style.display='none'}
+
+    function updateCount(){const c=$('postBody').value.length;const el=$('charCount');el.textContent=c+' / 300';el.className='char-count'+(c>280?(c>300?' over':' warn'):'')}
+
+    async function submitPost(){
+      if(!user){showAuth();return}
+      const body=$('postBody').value.trim();let tag=$('postTag').value.trim();
+      if(!body)return;if(body.length>300){toast('Liiga pikk! Max 300 märki');return}
+      if(tag&&!tag.startsWith('#'))tag='#'+tag;if(tag==='#')tag='';
+      $('postBtn').textContent='...';
+      try{const{error}=await sb.from('posts').insert({author_id:user.id,body,tag:tag||null});if(error)throw error;
+        $('postBody').value='';$('postTag').value='';updateCount();toast('Postitatud!');loadPosts();
+      }catch(x){toast('Viga: '+x.message)}
+      $('postBtn').textContent='Postita';
+    }
+
+    async function loadPosts(){
+      let q=sb.from('posts').select('*');
+      if(tab==='uusim')q=q.order('created_at',{ascending:false});else q=q.order('ups',{ascending:false});
+      q=q.limit(50);const{data:posts,error}=await q;
+      if(error){$('feed').innerHTML='<div class="empty"><h3>Viga</h3><p>'+error.message+'</p></div>';return}
+      if(!posts||!posts.length){
+        $('feed').innerHTML='<div class="empty"><h3>Voog on tühi</h3><p>Ole esimene kes postitab!</p></div>';
+        $('heroFeed').innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">Voog ootab esimest häält...</div>';return}
+      const aids=[...new Set(posts.map(p=>p.author_id))];
+      const{data:prs}=await sb.from('profiles').select('id,username').in('id',aids);
+      if(prs)prs.forEach(p=>profs[p.id]=p);
+      let ur={};if(user){const{data:rx}=await sb.from('reactions').select('post_id,value').eq('user_id',user.id);if(rx)rx.forEach(r=>ur[r.post_id]=r.value)}
+
+      $('feed').innerHTML=posts.map(p=>{
+        const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="post-tag">'+esc(p.tag)+'</span>':'',
+          rx=ur[p.id],uc=rx===1?' liked':'',dc=rx===-1?' disliked':'';
+        return '<div class="post-card"><div class="post-meta"><span class="post-handle">@'+esc(n)+'</span>'+tg+'<span>'+t+'</span></div><div class="post-body">'+esc(p.body)+'</div><div class="post-actions"><button class="post-action'+uc+'" onclick="react(\''+p.id+'\',1)">▲ '+(p.ups||0)+'</button><button class="post-action'+dc+'" onclick="react(\''+p.id+'\',-1)">▼ '+(p.downs||0)+'</button><button class="post-action">💬 '+(p.reply_count||0)+'</button></div></div>'
+      }).join('');
+
+      $('heroFeed').innerHTML=posts.slice(0,3).map(p=>{
+        const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="hp-t">'+esc(p.tag)+'</span>':'';
+        return '<div class="hp"><div class="hp-m"><span class="hp-h">@'+esc(n)+'</span><span>'+t+'</span></div><p>'+tg+esc(p.body)+'</p><div class="hp-a"><span>▲ '+(p.ups||0)+'</span><span>▼ '+(p.downs||0)+'</span><span>💬 '+(p.reply_count||0)+'</span></div></div>'
+      }).join('');
+    }
+
+    async function react(pid,v){
+      if(!user){showAuth();return}
+      try{const{data:ex}=await sb.from('reactions').select('*').eq('post_id',pid).eq('user_id',user.id).single();
+        if(ex){if(ex.value===v)await sb.from('reactions').delete().eq('id',ex.id);else await sb.from('reactions').update({value:v}).eq('id',ex.id)}
+        else await sb.from('reactions').insert({post_id:pid,user_id:user.id,value:v});
+        loadPosts()
+      }catch(x){console.error(x)}
+    }
+
+    function switchTab(t,el){tab=t;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');loadPosts()}
+    function setupRealtime(){sb.channel('public:posts').on('postgres_changes',{event:'INSERT',schema:'public',table:'posts'},()=>loadPosts()).subscribe()}
+    function $(id){return document.getElementById(id)}
+    function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+    function ago(ds){const d=Math.floor((new Date()-new Date(ds))/1000);if(d<60)return'just nüüd';if(d<3600)return Math.floor(d/60)+' min tagasi';if(d<86400)return Math.floor(d/3600)+'h tagasi';if(d<604800)return Math.floor(d/86400)+'p tagasi';return new Date(ds).toLocaleDateString('et-EE')}
+    function toast(m){const el=$('toast');el.textContent=m;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2500)}
+
+    async function init(){
+      try{const{data:{session}}=await sb.auth.getSession();
+        if(session){user=session.user;const{data:pr}=await sb.from('profiles').select('*').eq('id',session.user.id).single();if(pr){profile=pr;onLogin()}}
+        await loadPosts();setupRealtime()
+      }catch(x){$('feed').innerHTML='<div class="empty"><h3>Ühenduse viga</h3><p>'+x.message+'</p></div>'}
+    }
+    init();
+  </script>
 </body>
 </html>
