@@ -303,7 +303,10 @@
 
   <div class="modal-overlay" id="profileModal" onclick="if(event.target===this)hideProfile()"><div class="profile-modal">
     <div class="profile-header">
-      <h2 id="profileName">@kasutaja</h2>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2 id="profileName">@kasutaja</h2>
+        <button class="btn ghost" onclick="hideProfile()" style="font-size:22px;padding:4px 10px">✕</button>
+      </div>
       <p id="profileStats"></p>
     </div>
     <div class="profile-posts" id="profilePosts"><div class="loading">Laen...</div></div>
