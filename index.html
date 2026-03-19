@@ -117,6 +117,7 @@
     .reply-input::placeholder{color:var(--muted)}
     .reply-input:focus{border-color:var(--accent2)}
     .reply-send{background:var(--accent);color:#fff;border:none;border-radius:12px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap}
+    .reply-send:disabled{opacity:.5;cursor:not-allowed}
 
     /* HERO FEED PREVIEW */
     .hp{padding:14px 20px;border-top:1px solid var(--divider)}
@@ -269,6 +270,9 @@
     const sb=supabase.createClient(SB_URL,SB_KEY);
     let user=null,profile=null,isSignUp=true,tab='uusim',profs={};
 
+    // ── FIX: track which reply sections are open so loadPosts() won't collapse them ──
+    const openReplies=new Set();
+
     // THEME
     function toggleTheme(){
       const html=document.documentElement;
@@ -316,7 +320,9 @@
       if(!body)return;if(body.length>300){toast('Liiga pikk! Max 300 märki');return}
       if(tag&&!tag.startsWith('#'))tag='#'+tag;if(tag==='#')tag='';
       $('postBtn').textContent='...';
-      try{const{error}=await sb.from('posts').insert({author_id:user.id,body,tag:tag||null});if(error)throw error;
+      try{
+        const{error}=await sb.from('posts').insert({author_id:user.id,body,tag:tag||null});
+        if(error)throw error;
         $('postBody').value='';$('postTag').value='';updateCount();toast('Postitatud!');loadPosts();
       }catch(x){toast('Viga: '+x.message)}
       $('postBtn').textContent='Postita';
@@ -325,7 +331,8 @@
     async function loadPosts(){
       let q=sb.from('posts').select('*');
       if(tab==='uusim')q=q.order('created_at',{ascending:false});else q=q.order('ups',{ascending:false});
-      q=q.limit(50);const{data:posts,error}=await q;
+      q=q.limit(50);
+      const{data:posts,error}=await q;
       if(error){$('feed').innerHTML='<div class="empty"><h3>Viga</h3><p>'+error.message+'</p></div>';return}
       if(!posts||!posts.length){
         $('feed').innerHTML='<div class="empty"><h3>Voog on tühi</h3><p>Ole esimene kes postitab!</p></div>';
@@ -333,13 +340,25 @@
       const aids=[...new Set(posts.map(p=>p.author_id))];
       const{data:prs}=await sb.from('profiles').select('id,username').in('id',aids);
       if(prs)prs.forEach(p=>profs[p.id]=p);
-      let ur={};if(user){const{data:rx}=await sb.from('reactions').select('post_id,value').eq('user_id',user.id);if(rx)rx.forEach(r=>ur[r.post_id]=r.value)}
+      let ur={};
+      if(user){const{data:rx}=await sb.from('reactions').select('post_id,value').eq('user_id',user.id);if(rx)rx.forEach(r=>ur[r.post_id]=r.value)}
 
       $('feed').innerHTML=posts.map(p=>{
         const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="post-tag">'+esc(p.tag)+'</span>':'',
           rx=ur[p.id],uc=rx===1?' liked':'',dc=rx===-1?' disliked':'';
-        return '<div class="post-card"><div class="post-meta"><span class="post-handle">@'+esc(n)+'</span>'+tg+'<span>'+t+'</span></div><div class="post-body">'+esc(p.body)+'</div><div class="post-actions"><button class="post-action'+uc+'" onclick="react(\''+p.id+'\',1)">▲ '+(p.ups||0)+'</button><button class="post-action'+dc+'" onclick="react(\''+p.id+'\',-1)">▼ '+(p.downs||0)+'</button><button class="post-action" onclick="toggleReplies(\''+p.id+'\')">💬 <span id="rc-'+p.id+'">'+(p.reply_count||0)+'</span></button></div><div class="replies-section" id="replies-'+p.id+'"><div id="rlist-'+p.id+'"></div>'+(user?'<div class="reply-composer"><textarea class="reply-input" id="rinput-'+p.id+'" placeholder="Vasta..." rows="1"></textarea><button class="reply-send" onclick="submitReply(\''+p.id+'\')">Vasta</button></div>':'')+'</div></div>'
+        return '<div class="post-card"><div class="post-meta"><span class="post-handle">@'+esc(n)+'</span>'+tg+'<span>'+t+'</span></div><div class="post-body">'+esc(p.body)+'</div><div class="post-actions"><button class="post-action'+uc+'" onclick="react(\''+p.id+'\',1)">▲ '+(p.ups||0)+'</button><button class="post-action'+dc+'" onclick="react(\''+p.id+'\',-1)">▼ '+(p.downs||0)+'</button><button class="post-action" onclick="toggleReplies(\''+p.id+'\')">💬 <span id="rc-'+p.id+'">'+(p.reply_count||0)+'</span></button></div><div class="replies-section" id="replies-'+p.id+'"><div id="rlist-'+p.id+'"></div>'+(user?'<div class="reply-composer"><textarea class="reply-input" id="rinput-'+p.id+'" placeholder="Vasta..." rows="1"></textarea><button class="reply-send" id="rsend-'+p.id+'" onclick="submitReply(\''+p.id+'\')">Vasta</button></div>':'')+'</div></div>'
       }).join('');
+
+      // ── FIX: re-open reply sections that were open before re-render ──
+      for(const pid of openReplies){
+        const el=$('replies-'+pid);
+        if(el){
+          el.classList.add('open');
+          loadReplies(pid); // reload replies content too
+        }else{
+          openReplies.delete(pid); // post no longer visible, clean up
+        }
+      }
 
       $('heroFeed').innerHTML=posts.slice(0,3).map(p=>{
         const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="hp-t">'+esc(p.tag)+'</span>':'';
@@ -350,14 +369,22 @@
     // REPLIES
     async function toggleReplies(pid){
       const el=$('replies-'+pid);
-      if(el.classList.contains('open')){el.classList.remove('open');return}
+      if(!el)return;
+      if(el.classList.contains('open')){
+        el.classList.remove('open');
+        openReplies.delete(pid); // ── FIX: untrack when closed
+        return;
+      }
       el.classList.add('open');
+      openReplies.add(pid); // ── FIX: track as open
       await loadReplies(pid);
     }
 
     async function loadReplies(pid){
       const{data:replies}=await sb.from('replies').select('*').eq('post_id',pid).order('created_at',{ascending:true});
-      if(!replies||!replies.length){$('rlist-'+pid).innerHTML='<div style="padding:8px 0;color:var(--muted);font-size:13px">Veel pole vastuseid. Ole esimene!</div>';return}
+      if(!replies||!replies.length){
+        $('rlist-'+pid).innerHTML='<div style="padding:8px 0;color:var(--muted);font-size:13px">Veel pole vastuseid. Ole esimene!</div>';return;
+      }
       const aids=[...new Set(replies.map(r=>r.author_id))];
       const{data:rp}=await sb.from('profiles').select('id,username').in('id',aids);
       if(rp)rp.forEach(p=>profs[p.id]=p);
@@ -369,33 +396,81 @@
 
     async function submitReply(pid){
       if(!user){showAuth();return}
-      const input=$('rinput-'+pid);const body=input.value.trim();
-      if(!body)return;if(body.length>300){toast('Liiga pikk!');return}
+      const input=$('rinput-'+pid);
+      const btn=$('rsend-'+pid);
+      const body=input.value.trim();
+      if(!body)return;
+      if(body.length>300){toast('Liiga pikk!');return}
+      if(btn)btn.disabled=true;
       try{
-        const{error}=await sb.from('replies').insert({post_id:pid,author_id:user.id,body});if(error)throw error;
-        input.value='';await loadReplies(pid);
-        // Update reply count display
-        const rc=$('rc-'+pid);if(rc)rc.textContent=parseInt(rc.textContent)+1;
+        const{error}=await sb.from('replies').insert({post_id:pid,author_id:user.id,body});
+        if(error)throw error;
+        input.value='';
+
+        // ── FIX: reload replies list immediately ──
+        await loadReplies(pid);
+
+        // ── FIX: fetch fresh reply_count from DB (trigger sets the correct value) ──
+        const{data:post}=await sb.from('posts').select('reply_count').eq('id',pid).single();
+        if(post){
+          const rc=$('rc-'+pid);
+          if(rc)rc.textContent=post.reply_count||0;
+          // also update hero feed if visible
+          const heroEl=document.querySelector('#heroFeed');
+          if(heroEl)loadHeroFeed(); // lightweight hero-only refresh
+        }
         toast('Vastatud!');
       }catch(x){toast('Viga: '+x.message)}
+      finally{if(btn)btn.disabled=false;}
+    }
+
+    // ── Lightweight hero feed refresh without touching main feed ──
+    async function loadHeroFeed(){
+      let q=sb.from('posts').select('*').order('created_at',{ascending:false}).limit(3);
+      const{data:posts}=await q;
+      if(!posts||!posts.length)return;
+      const aids=[...new Set(posts.map(p=>p.author_id))];
+      const{data:prs}=await sb.from('profiles').select('id,username').in('id',aids);
+      if(prs)prs.forEach(p=>profs[p.id]=p);
+      $('heroFeed').innerHTML=posts.map(p=>{
+        const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="hp-t">'+esc(p.tag)+'</span>':'';
+        return '<div class="hp"><div class="hp-m"><span class="hp-h">@'+esc(n)+'</span><span>'+t+'</span></div><p>'+tg+esc(p.body)+'</p><div class="hp-a"><span>▲ '+(p.ups||0)+'</span><span>💬 '+(p.reply_count||0)+'</span></div></div>'
+      }).join('');
     }
 
     async function react(pid,v){
       if(!user){showAuth();return}
-      try{const{data:ex}=await sb.from('reactions').select('*').eq('post_id',pid).eq('user_id',user.id).single();
+      try{
+        const{data:ex}=await sb.from('reactions').select('*').eq('post_id',pid).eq('user_id',user.id).single();
         if(ex){if(ex.value===v)await sb.from('reactions').delete().eq('id',ex.id);else await sb.from('reactions').update({value:v}).eq('id',ex.id)}
         else await sb.from('reactions').insert({post_id:pid,user_id:user.id,value:v});
-        loadPosts()
+        loadPosts();
       }catch(x){console.error(x)}
     }
 
     function switchTab(t,el){tab=t;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');loadPosts()}
+
     function setupRealtime(){
       sb.channel('krants-live')
         .on('postgres_changes',{event:'INSERT',schema:'public',table:'posts'},()=>loadPosts())
-        .on('postgres_changes',{event:'INSERT',schema:'public',table:'replies'},()=>loadPosts())
+        // ── FIX: replies realtime — only update the specific post counter, don't reload all ──
+        .on('postgres_changes',{event:'INSERT',schema:'public',table:'replies'},async(payload)=>{
+          const pid=payload.new?.post_id;
+          if(!pid)return;
+          // fetch updated count for just this post
+          const{data:post}=await sb.from('posts').select('reply_count').eq('id',pid).single();
+          if(post){
+            const rc=$('rc-'+pid);
+            if(rc)rc.textContent=post.reply_count||0;
+          }
+          // if this reply section is open and the reply was from someone else, refresh replies list
+          if(openReplies.has(pid)&&(!user||payload.new?.author_id!==user.id)){
+            loadReplies(pid);
+          }
+        })
         .subscribe();
     }
+
     function $(id){return document.getElementById(id)}
     function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
     function ago(ds){const d=Math.floor((new Date()-new Date(ds))/1000);if(d<60)return'just nüüd';if(d<3600)return Math.floor(d/60)+' min tagasi';if(d<86400)return Math.floor(d/3600)+'h tagasi';if(d<604800)return Math.floor(d/86400)+'p tagasi';return new Date(ds).toLocaleDateString('et-EE')}
@@ -403,9 +478,11 @@
 
     async function init(){
       loadTheme();
-      try{const{data:{session}}=await sb.auth.getSession();
+      try{
+        const{data:{session}}=await sb.auth.getSession();
         if(session){user=session.user;const{data:pr}=await sb.from('profiles').select('*').eq('id',session.user.id).single();if(pr){profile=pr;onLogin()}}
-        await loadPosts();setupRealtime()
+        await loadPosts();
+        setupRealtime();
       }catch(x){$('feed').innerHTML='<div class="empty"><h3>Ühenduse viga</h3><p>'+x.message+'</p></div>'}
     }
     init();
