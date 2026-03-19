@@ -327,6 +327,10 @@
     const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1lcWtsamVjZnJic3Z6ZHlhZnJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4ODE5MTcsImV4cCI6MjA4OTQ1NzkxN30.H4nlKFpYI_EmksnBLK7NQURhTw26-BrdM81kb9FctpE';
     const sb=supabase.createClient(SB_URL,SB_KEY);
     let user=null,profile=null,isSignUp=true,tab='uusim',profs={},activeTag=null;
+    let lastPostTime=0,lastReplyTime=0,lastSignupTime=0;
+    const POST_COOLDOWN=30000; // 30 sec between posts
+    const REPLY_COOLDOWN=10000; // 10 sec between replies
+    const SIGNUP_COOLDOWN=60000; // 60 sec between signups
 
     // Track which reply sections are open so loadPosts() won't collapse them
     const openReplies=new Set();
@@ -397,6 +401,7 @@
       const e=$('authEmail').value.trim(),p=$('authPassword').value,u=$('authUsername').value.trim(),err=$('authError');
       if(!e||!p){err.textContent='Täida kõik väljad';err.style.display='block';return}
       if(isSignUp&&(!u||u.length<2)){err.textContent='Kasutajanimi peab olema vähemalt 2 tähemärki';err.style.display='block';return}
+      if(isSignUp){const now=Date.now();if(now-lastSignupTime<SIGNUP_COOLDOWN){err.textContent='Oota veidi enne uue konto loomist';err.style.display='block';return}}
       $('authSubmit').textContent='Oota...';
       try{
         if(isSignUp){
@@ -404,7 +409,7 @@
           if(ex){err.textContent='See kasutajanimi on juba võetud';err.style.display='block';$('authSubmit').textContent='Loo nimi';return}
           const{data,error}=await sb.auth.signUp({email:e,password:p});if(error)throw error;
           const{error:pe}=await sb.from('profiles').insert({id:data.user.id,username:u});if(pe)throw pe;
-          user=data.user;profile={username:u};hideAuth();onLogin();toast('Tere tulemast, @'+u+'!');
+          user=data.user;profile={username:u};lastSignupTime=Date.now();hideAuth();onLogin();toast('Tere tulemast, @'+u+'!');
         }else{
           const{data,error}=await sb.auth.signInWithPassword({email:e,password:p});if(error)throw error;
           user=data.user;const{data:pr}=await sb.from('profiles').select('*').eq('id',data.user.id).single();
@@ -419,6 +424,8 @@
 
     async function submitPost(){
       if(!user){showAuth();return}
+      const now=Date.now();
+      if(now-lastPostTime<POST_COOLDOWN){const secs=Math.ceil((POST_COOLDOWN-(now-lastPostTime))/1000);toast('Oota '+secs+'s enne järgmist postitust');return}
       const body=$('postBody').value.trim();let tag=$('postTag').value.trim();
       if(!body)return;if(body.length>300){toast('Liiga pikk! Max 300 märki');return}
       if(tag&&!tag.startsWith('#'))tag='#'+tag;if(tag==='#')tag='';
@@ -426,6 +433,7 @@
       try{
         const{error}=await sb.from('posts').insert({author_id:user.id,body,tag:tag||null});
         if(error)throw error;
+        lastPostTime=Date.now();
         $('postBody').value='';$('postTag').value='';updateCount();toast('Postitatud!');loadPosts();
       }catch(x){toast('Viga: '+x.message)}
       $('postBtn').textContent='Postita';
@@ -555,6 +563,8 @@
 
     async function submitReply(pid){
       if(!user){showAuth();return}
+      const now=Date.now();
+      if(now-lastReplyTime<REPLY_COOLDOWN){const secs=Math.ceil((REPLY_COOLDOWN-(now-lastReplyTime))/1000);toast('Oota '+secs+'s enne järgmist vastust');return}
       const input=$('rinput-'+pid);
       const btn=$('rsend-'+pid);
       const body=input.value.trim();
@@ -564,6 +574,7 @@
       try{
         const{error}=await sb.from('replies').insert({post_id:pid,author_id:user.id,body});
         if(error)throw error;
+        lastReplyTime=Date.now();
         input.value='';
 
         // Reload replies list immediately
