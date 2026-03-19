@@ -392,12 +392,27 @@
     const sb=supabase.createClient(SB_URL,SB_KEY);
     let user=null,profile=null,isSignUp=true,tab='uusim',profs={},activeTag=null,pulssSort='uusimad';
     let lastPostTime=0,lastReplyTime=0,lastSignupTime=0;
-    const POST_COOLDOWN=30000; // 30 sec between posts
-    const REPLY_COOLDOWN=10000; // 10 sec between replies
-    const SIGNUP_COOLDOWN=60000; // 60 sec between signups
+    const POST_COOLDOWN=30000;
+    const REPLY_COOLDOWN=10000;
+    const SIGNUP_COOLDOWN=60000;
 
-    // Track which reply sections are open so loadPosts() won't collapse them
     const openReplies=new Set();
+
+    // ===== REPLY COUNT HELPER =====
+    // Fetches actual reply counts from replies table for given post IDs
+    async function fetchReplyCounts(postIds){
+      if(!postIds||!postIds.length)return{};
+      const rcMap={};
+      // Supabase: select post_id from replies where post_id in (...)
+      const{data:replyRows}=await sb.from('replies').select('post_id').in('post_id',postIds);
+      if(replyRows)replyRows.forEach(r=>{rcMap[r.post_id]=(rcMap[r.post_id]||0)+1});
+      return rcMap;
+    }
+
+    // Applies fetched reply counts to posts array
+    function applyReplyCounts(posts,rcMap){
+      posts.forEach(p=>{p._reply_count=rcMap[p.id]||0});
+    }
 
     // THEME
     function toggleTheme(){
@@ -415,7 +430,6 @@
     function showAuth(){if(user)return;$('authModal').style.display='flex';$('authError').style.display='none';$('authEmail').value='';$('authPassword').value='';$('authUsername').value=''}
     function hideAuth(){$('authModal').style.display='none'}
 
-    // ACCOUNT MENU
     function toggleAccountMenu(){if(!user)return;const m=$('accountMenu');m.classList.toggle('open')}
     function closeAccountMenu(){const m=$('accountMenu');if(m)m.classList.remove('open')}
     document.addEventListener('click',function(e){if(!e.target.closest('.nav-right'))closeAccountMenu()});
@@ -432,7 +446,6 @@
       toast('Oled välja loginud');
     }
 
-    // DELETE ACCOUNT
     function showDeleteConfirm(){closeAccountMenu();$('deleteModal').style.display='flex';$('deleteError').style.display='none';$('deleteConfirm').value=''}
     function hideDeleteConfirm(){$('deleteModal').style.display='none'}
 
@@ -443,14 +456,11 @@
       $('deleteBtn').textContent='Kustutan...';
       try{
         const uid=user.id;
-        // Delete all user data in order
         await sb.from('reactions').delete().eq('user_id',uid);
         await sb.from('replies').delete().eq('author_id',uid);
-        // Update reply_counts for posts that had user's replies
         await sb.rpc('refresh_reply_counts').catch(()=>{});
         await sb.from('posts').delete().eq('author_id',uid);
         await sb.from('profiles').delete().eq('id',uid);
-        // Sign out
         await sb.auth.signOut();
         user=null;profile=null;
         hideDeleteConfirm();
@@ -491,28 +501,25 @@
     // SPAM & PROFANITY FILTER
     const BLOCKED_WORDS=['kurat','perse','vittu','vitt','türa','munn','lits','lort','pede','homo','neeger','tibla','neger','raisk','persse','sitt','sitta','sitane','putsi','fuck','shit','bitch','cunt','nigger','faggot','perse','krt','muna','keppi','jobu','debiilik','idioot','loll','tuss','tussu'];
     const SPAM_PATTERNS=[
-      /(.)\1{4,}/,          // sama täht 5+ korda: aaaaa
-      /https?:\/\/\S+/i,    // lingid
-      /www\.\S+/i,          // www lingid
-      /.+\.(com|net|org|ru|cn|xyz|click|win|top)\b/i, // domeenid
-      /[\u{1F600}-\u{1F9FF}]{4,}/u, // 4+ emoji järjest
-      /[A-ZÕÄÖÜ]{20,}/,     // 20+ suurtähte järjest
-      /(.{3,})\1{2,}/,      // sama fraas 3+ korda
+      /(.)\1{4,}/,
+      /https?:\/\/\S+/i,
+      /www\.\S+/i,
+      /.+\.(com|net|org|ru|cn|xyz|click|win|top)\b/i,
+      /[\u{1F600}-\u{1F9FF}]{4,}/u,
+      /[A-ZÕÄÖÜ]{20,}/,
+      /(.{3,})\1{2,}/,
     ];
 
     function checkContent(text){
       const lower=text.toLowerCase().replace(/[0-9@!.,:;_\-*]/g,'');
-      // Sõnafilter
       for(const w of BLOCKED_WORDS){
-        // Täpne sõna, mitte osaline (nt "kultuur" ei blokeeru "kult" pärast)
         const regex=new RegExp('\\b'+w+'\\b','i');
         if(regex.test(lower))return'Postitus sisaldab sobimatut sõna. Palun sõnasta ümber.';
       }
-      // Spämmi mustrid
       for(const p of SPAM_PATTERNS){
         if(p.test(text))return'Postitus näeb välja nagu spämm. Kirjuta selgelt ja lühidalt.';
       }
-      return null; // OK
+      return null;
     }
 
     // POSTS
@@ -548,24 +555,26 @@
       const{data:prs}=await sb.from('profiles').select('id,username').in('id',aids);
       if(prs)prs.forEach(p=>profs[p.id]=p);
 
+      // FIX: Fetch actual reply counts from replies table
+      const rcMap=await fetchReplyCounts(posts.map(p=>p.id));
+      applyReplyCounts(posts,rcMap);
+
       $('feed').innerHTML=posts.map(p=>{
         const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="post-tag">'+esc(p.tag)+'</span>':'';
-        return '<div class="post-card"><div class="post-meta"><span class="post-handle" onclick="showProfile(\''+p.author_id+'\')">@'+esc(n)+'</span>'+tg+'<span>'+t+'</span></div><div class="post-body">'+esc(p.body)+'</div><div class="post-actions"><span class="post-action">▲ '+(p.ups||0)+'</span><span class="post-action">▼ '+(p.downs||0)+'</span><span class="post-action">💬 '+(p.reply_count||0)+'</span></div></div>'
+        return '<div class="post-card"><div class="post-meta"><span class="post-handle" onclick="showProfile(\''+p.author_id+'\')">@'+esc(n)+'</span>'+tg+'<span>'+t+'</span></div><div class="post-body">'+esc(p.body)+'</div><div class="post-actions"><span class="post-action">▲ '+(p.ups||0)+'</span><span class="post-action">▼ '+(p.downs||0)+'</span><span class="post-action">💬 '+p._reply_count+'</span></div></div>'
       }).join('');
-
-      // Pulss updates separately via loadHeroFeed()
     }
 
-    // Render hero feed from given posts array (avoids extra DB call)
+    // Render hero feed from given posts array
     function renderHeroFeed(posts){
       const items=posts.slice(0,20);
       $('heroFeed').innerHTML=items.map(p=>{
         const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="hp-t" onclick="filterByTag(\''+esc(p.tag)+'\')">'+esc(p.tag)+'</span>':'';
+        const rc=p._reply_count!=null?p._reply_count:(p.reply_count||0);
         const replyComposer='<div class="reply-composer"><textarea class="reply-input" id="rinput-'+p.id+'" placeholder="Iga vastus on tähtis..." rows="1"></textarea><button class="reply-send" id="rsend-'+p.id+'" onclick="submitReply(\''+p.id+'\')">Vasta</button></div>';
-        return '<div class="hp" id="post-'+p.id+'"><div class="hp-m"><span class="hp-h" onclick="showProfile(\''+p.author_id+'\')">@'+esc(n)+'</span><span>'+t+'</span></div><p>'+tg+esc(p.body)+'</p><div class="hp-a"><span>▲ '+(p.ups||0)+'</span><span style="cursor:pointer" onclick="toggleReplies(\''+p.id+'\')">💬 <span id="rc-'+p.id+'">'+(p.reply_count||0)+'</span></span><span style="cursor:pointer" onclick="sharePost(\''+p.id+'\')">🔗 Jaga</span></div><div class="replies-section" id="replies-'+p.id+'"><div id="rlist-'+p.id+'"></div>'+replyComposer+'</div></div>'
+        return '<div class="hp" id="post-'+p.id+'"><div class="hp-m"><span class="hp-h" onclick="showProfile(\''+p.author_id+'\')">@'+esc(n)+'</span><span>'+t+'</span></div><p>'+tg+esc(p.body)+'</p><div class="hp-a"><span>▲ '+(p.ups||0)+'</span><span style="cursor:pointer" onclick="toggleReplies(\''+p.id+'\')">💬 <span id="rc-'+p.id+'">'+rc+'</span></span><span style="cursor:pointer" onclick="sharePost(\''+p.id+'\')">🔗 Jaga</span></div><div class="replies-section" id="replies-'+p.id+'"><div id="rlist-'+p.id+'"></div>'+replyComposer+'</div></div>'
       }).join('');
 
-      // Re-open reply sections that were open before re-render
       for(const pid of openReplies){
         const el=$('replies-'+pid);
         if(el){
@@ -577,11 +586,16 @@
       }
     }
 
-    // Standalone hero feed refresh (fetches fresh data from DB)
+    // Standalone hero feed refresh
     let cachedHeroPosts=[];
     async function loadHeroFeed(){
       const{data:posts}=await sb.from('posts').select('*').order('created_at',{ascending:false}).limit(50);
       if(!posts||!posts.length){$('heroFeed').innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">Voog ootab esimest häält...</div>';cachedHeroPosts=[];return}
+
+      // FIX: Fetch actual reply counts from replies table
+      const rcMap=await fetchReplyCounts(posts.map(p=>p.id));
+      applyReplyCounts(posts,rcMap);
+
       cachedHeroPosts=posts;
       const aids=[...new Set(posts.map(p=>p.author_id))];
       const{data:prs}=await sb.from('profiles').select('id,username').in('id',aids);
@@ -615,8 +629,7 @@
     function sortAndRenderPulss(){
       let sorted=[...cachedHeroPosts];
       if(pulssSort==='populaarsemad')sorted.sort((a,b)=>(b.ups||0)-(a.ups||0));
-      else if(pulssSort==='arutelu')sorted.sort((a,b)=>(b.reply_count||0)-(a.reply_count||0));
-      // uusimad = default DB order (newest first)
+      else if(pulssSort==='arutelu')sorted.sort((a,b)=>(b._reply_count||0)-(a._reply_count||0));
       renderHeroFeed(sorted);
     }
 
@@ -638,10 +651,15 @@
           $('profilePosts').innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">Pole veel postitusi.</div>';
           return;
         }
+
+        // FIX: Fetch actual reply counts for profile posts
+        const rcMap=await fetchReplyCounts(posts.map(p=>p.id));
+        applyReplyCounts(posts,rcMap);
+
         $('profileStats').textContent=posts.length+' postitus'+(posts.length===1?'':'t');
         $('profilePosts').innerHTML=posts.map(p=>{
           const t=ago(p.created_at),tg=p.tag?'<span class="post-tag" style="font-size:10px;padding:2px 6px">'+esc(p.tag)+'</span>':'';
-          return '<div class="profile-post"><div class="profile-post-meta">'+tg+'<span>'+t+'</span></div><div class="profile-post-body">'+esc(p.body)+'</div><div class="profile-post-stats"><span>▲ '+(p.ups||0)+'</span><span>▼ '+(p.downs||0)+'</span><span>💬 '+(p.reply_count||0)+'</span></div></div>'
+          return '<div class="profile-post"><div class="profile-post-meta">'+tg+'<span>'+t+'</span></div><div class="profile-post-body">'+esc(p.body)+'</div><div class="profile-post-stats"><span>▲ '+(p.ups||0)+'</span><span>▼ '+(p.downs||0)+'</span><span>💬 '+p._reply_count+'</span></div></div>'
         }).join('');
       }catch(x){
         $('profilePosts').innerHTML='<div class="empty"><p>Viga: '+x.message+'</p></div>';
@@ -709,15 +727,16 @@
         // Reload replies list immediately
         await loadReplies(pid);
 
-        // Fetch fresh reply_count from DB (trigger sets the correct value)
-        const{data:post}=await sb.from('posts').select('reply_count').eq('id',pid).single();
-        if(post){
-          const rc=$('rc-'+pid);
-          if(rc)rc.textContent=post.reply_count||0;
-          // Update cache silently (no full re-render to avoid visual jump)
-          const cached=cachedHeroPosts.find(p=>p.id===pid);
-          if(cached)cached.reply_count=post.reply_count;
-        }
+        // FIX: Count replies directly from DB instead of relying on reply_count column
+        const{data:replyRows}=await sb.from('replies').select('id',{count:'exact',head:true}).eq('post_id',pid);
+        // Alternative: just count from the loadReplies we just did
+        const rlistEl=$('rlist-'+pid);
+        const actualCount=rlistEl?rlistEl.querySelectorAll('.reply-item').length:0;
+        const rc=$('rc-'+pid);
+        if(rc)rc.textContent=actualCount;
+        // Update cache
+        const cached=cachedHeroPosts.find(p=>p.id===pid);
+        if(cached)cached._reply_count=actualCount;
 
         toast('Vastatud!');
       }catch(x){toast('Viga: '+x.message)}
@@ -734,15 +753,12 @@
       }catch(x){console.error(x)}
     }
 
-    // (Mõttevoog always shows newest first)
-
-    // TAG FILTER — filters Pulss, not Mõttevoog
+    // TAG FILTER
     function filterByTag(tag){
       activeTag=tag;
       const filtered=cachedHeroPosts.filter(p=>p.tag&&p.tag===tag);
       if(filtered.length)renderHeroFeed(filtered);
       else $('heroFeed').innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">Pole postitusi tagiga '+esc(tag)+'</div>';
-      // Show filter bar in Pulss area
       const fb=$('filterBar');
       if(fb){fb.style.display='flex';fb.className='filter-bar';fb.innerHTML='<span>Filtreerib:</span><span class="filter-tag">'+esc(tag)+'</span><button class="filter-clear" onclick="clearFilter()">✕ Tühjenda</button>'}
     }
@@ -755,24 +771,28 @@
         navigator.share({title:'Krants',url:url}).catch(()=>{});
       }else{
         navigator.clipboard.writeText(url).then(()=>toast('Link kopeeritud!')).catch(()=>{
-          // Fallback
           const tmp=document.createElement('input');tmp.value=url;document.body.appendChild(tmp);tmp.select();document.execCommand('copy');document.body.removeChild(tmp);
           toast('Link kopeeritud!');
         });
       }
     }
 
-    // DEEP LINK — show single post from ?post=id
+    // DEEP LINK
     async function loadSinglePost(postId){
       const{data:p,error}=await sb.from('posts').select('*').eq('id',postId).single();
       if(error||!p){toast('Postitust ei leitud');loadPosts();return}
       const{data:prs}=await sb.from('profiles').select('id,username').in('id',[p.author_id]);
       if(prs)prs.forEach(pr=>profs[pr.id]=pr);
+
+      // FIX: Fetch actual reply count for single post
+      const rcMap=await fetchReplyCounts([p.id]);
+      const rc=rcMap[p.id]||0;
+
       const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="post-tag" onclick="filterByTag(\''+esc(p.tag)+'\')">'+esc(p.tag)+'</span>':'';
       $('filterBar').style.display='flex';$('filterBar').className='filter-bar';
       $('filterBar').innerHTML='<span>Üksik postitus</span><button class="filter-clear" onclick="clearDeepLink()">✕ Näita kõiki</button>';
       const replyComposer='<div class="reply-composer"><textarea class="reply-input" id="rinput-'+p.id+'" placeholder="Iga vastus on tähtis..." rows="1"></textarea><button class="reply-send" id="rsend-'+p.id+'" onclick="submitReply(\''+p.id+'\')">Vasta</button></div>';
-      $('feed').innerHTML='<div class="post-card" id="post-'+p.id+'"><div class="post-meta"><span class="post-handle" onclick="showProfile(\''+p.author_id+'\')">@'+esc(n)+'</span>'+tg+'<span>'+t+'</span></div><div class="post-body">'+esc(p.body)+'</div><div class="post-actions"><span class="post-action">▲ '+(p.ups||0)+'</span><span class="post-action">▼ '+(p.downs||0)+'</span><button class="post-action" onclick="toggleReplies(\''+p.id+'\')">💬 <span id="rc-'+p.id+'">'+(p.reply_count||0)+'</span></button></div><div class="replies-section open" id="replies-'+p.id+'"><div id="rlist-'+p.id+'"></div>'+replyComposer+'</div></div>';
+      $('feed').innerHTML='<div class="post-card" id="post-'+p.id+'"><div class="post-meta"><span class="post-handle" onclick="showProfile(\''+p.author_id+'\')">@'+esc(n)+'</span>'+tg+'<span>'+t+'</span></div><div class="post-body">'+esc(p.body)+'</div><div class="post-actions"><span class="post-action">▲ '+(p.ups||0)+'</span><span class="post-action">▼ '+(p.downs||0)+'</span><button class="post-action" onclick="toggleReplies(\''+p.id+'\')">💬 <span id="rc-'+p.id+'">'+rc+'</span></button></div><div class="replies-section open" id="replies-'+p.id+'"><div id="rlist-'+p.id+'"></div>'+replyComposer+'</div></div>';
       openReplies.add(postId);
       loadReplies(postId);
       document.querySelector('#voog')?.scrollIntoView({behavior:'smooth'});
@@ -786,17 +806,19 @@
         .on('postgres_changes',{event:'INSERT',schema:'public',table:'replies'},async(payload)=>{
           const pid=payload.new?.post_id;
           if(!pid)return;
-          // Fetch updated count for just this post
-          const{data:post}=await sb.from('posts').select('reply_count').eq('id',pid).single();
-          if(post){
-            const rc=$('rc-'+pid);
-            if(rc)rc.textContent=post.reply_count||0;
-          }
-          // If this reply section is open and the reply was from someone else, refresh replies list
+
+          // FIX: Count replies directly from replies table
+          const{count}=await sb.from('replies').select('*',{count:'exact',head:true}).eq('post_id',pid);
+          const actualCount=count||0;
+          const rc=$('rc-'+pid);
+          if(rc)rc.textContent=actualCount;
+          // Update cache
+          const cached=cachedHeroPosts.find(p=>p.id===pid);
+          if(cached)cached._reply_count=actualCount;
+
           if(openReplies.has(pid)&&(!user||payload.new?.author_id!==user.id)){
             loadReplies(pid);
           }
-          // FIX: Always update Rahvuslik Pulss when any reply comes in
           loadHeroFeed();
         })
         .subscribe();
@@ -823,14 +845,12 @@
       try{
         const{data:{session}}=await sb.auth.getSession();
         if(session){user=session.user;const{data:pr}=await sb.from('profiles').select('*').eq('id',session.user.id).single();if(pr){profile=pr;onLogin()}}
-        // Check for deep link ?post=id (show even for visitors)
         const params=new URLSearchParams(window.location.search);
         const postId=params.get('post');
         if(postId){
           $('feed').style.display='block';$('feedGate').style.display='none';
           await loadSinglePost(postId);
         }
-        // Always load Pulss and stats
         await loadHeroFeed();
         loadStats();
         setupRealtime();
