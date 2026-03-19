@@ -5,6 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Krants — Eesti avalik mõttevoog</title>
   <meta name="description" content="Krants on eestikeelne avalik mõttevoog. Lühikesed postitused, kiired reaktsioonid, päris Eesti voog." />
+  <!-- OG Meta -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://krants.online/" />
+  <meta property="og:title" content="Krants — Eesti avalik mõttevoog" />
+  <meta property="og:description" content="Lühikesed postitused. Kiired reaktsioonid. Päris Eesti voog — ilma algoritmide, suletud gruppide ja pressiteadeteta." />
+  <meta property="og:image" content="https://krants.online/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Krants — Eesti avalik mõttevoog" />
+  <meta name="twitter:description" content="Lühikesed postitused. Kiired reaktsioonid. Päris Eesti voog." />
+  <meta name="twitter:image" content="https://krants.online/og-image.png" />
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
     /* DARK THEME (default) */
@@ -126,6 +142,7 @@
     .reply-input{flex:1;background:var(--input-bg);border:1px solid var(--card-border);border-radius:12px;padding:10px 14px;font-size:14px;color:var(--text);font-family:inherit;outline:none;resize:none;min-height:38px;max-height:80px}
     .reply-input::placeholder{color:var(--muted)}
     .reply-input:focus{border-color:var(--accent2)}
+    #pulssSearch:focus{border-color:var(--accent2)}
     .reply-send{background:var(--accent);color:#fff;border:none;border-radius:12px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap}
     .reply-send:disabled{opacity:.5;cursor:not-allowed}
 
@@ -213,6 +230,9 @@
       </div>
       <div class="card livefeed">
         <div class="feedhead"><strong style="color:var(--accent)">Rahvuslik Pulss</strong><span style="color:var(--muted);font-size:13px">otsevoog</span></div>
+        <div style="padding:10px 16px;border-bottom:1px solid var(--divider)">
+          <input type="text" id="pulssSearch" placeholder="Otsi postitustest..." oninput="searchPulss()" style="width:100%;background:var(--input-bg);border:1px solid var(--card-border);border-radius:12px;padding:8px 14px;font-size:13px;color:var(--text);font-family:inherit;outline:none">
+        </div>
         <div class="hero-feed-scroll"><div id="heroFeed"><div class="loading">Laen...</div></div></div>
       </div>
     </div>
@@ -499,13 +519,31 @@
     }
 
     // Standalone hero feed refresh (fetches fresh data from DB)
+    let cachedHeroPosts=[];
     async function loadHeroFeed(){
-      const{data:posts}=await sb.from('posts').select('*').order('created_at',{ascending:false}).limit(20);
+      const{data:posts}=await sb.from('posts').select('*').order('created_at',{ascending:false}).limit(50);
       if(!posts||!posts.length)return;
+      cachedHeroPosts=posts;
       const aids=[...new Set(posts.map(p=>p.author_id))];
       const{data:prs}=await sb.from('profiles').select('id,username').in('id',aids);
       if(prs)prs.forEach(p=>profs[p.id]=p);
-      renderHeroFeed(posts);
+      const searchVal=$('pulssSearch')?$('pulssSearch').value.trim().toLowerCase():'';
+      if(searchVal)searchPulss();else renderHeroFeed(posts);
+    }
+
+    function searchPulss(){
+      const q=$('pulssSearch').value.trim().toLowerCase();
+      if(!q){renderHeroFeed(cachedHeroPosts);return}
+      const filtered=cachedHeroPosts.filter(p=>{
+        const author=profs[p.author_id];
+        const name=author?author.username.toLowerCase():'';
+        return p.body.toLowerCase().includes(q)||(p.tag&&p.tag.toLowerCase().includes(q))||name.includes(q);
+      });
+      if(!filtered.length){
+        $('heroFeed').innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">Ei leidnud midagi otsinguga "'+esc(q)+'"</div>';
+        return;
+      }
+      renderHeroFeed(filtered);
     }
 
     // PROFILE MODAL
