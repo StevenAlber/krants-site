@@ -220,6 +220,7 @@
     <h1>Eesti avalik mõttevoog</h1>
     <div class="sub">Lühikesed postitused. Kiired reaktsioonid. Päris Eesti voog — ilma algoritmide, suletud gruppide ja pressiteadeteta.</div>
     <div class="herocta"><a class="btn primary" href="#voog" onclick="showAuth()">Võta sõna</a><a class="btn" href="#mis">Vaata, mis see on</a></div>
+    <div id="liveStats" style="display:flex;gap:28px;justify-content:center;margin-top:22px;font-size:14px;color:var(--muted)"></div>
     <div class="hero-grid">
       <div class="card">
         <div class="quote"><strong>Krants</strong> on koht, kus rahvas võib tulla ja korraks päriselt välja öelda, mida ta näeb, mõtleb või haistab.</div>
@@ -501,7 +502,7 @@
         const{error}=await sb.from('posts').insert({author_id:user.id,body,tag:tag||null});
         if(error)throw error;
         lastPostTime=Date.now();
-        $('postBody').value='';$('postTag').value='';updateCount();toast('Postitatud!');loadPosts();loadHeroFeed();
+        $('postBody').value='';$('postTag').value='';updateCount();toast('Postitatud!');loadPosts();loadHeroFeed();loadStats();
       }catch(x){toast('Viga: '+x.message)}
       $('postBtn').textContent='Postita';
     }
@@ -774,6 +775,17 @@
     function ago(ds){const d=Math.floor((new Date()-new Date(ds))/1000);if(d<60)return'just nüüd';if(d<3600)return Math.floor(d/60)+' min tagasi';if(d<86400)return Math.floor(d/3600)+'h tagasi';if(d<604800)return Math.floor(d/86400)+'p tagasi';return new Date(ds).toLocaleDateString('et-EE')}
     function toast(m){const el=$('toast');el.textContent=m;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2500)}
 
+    async function loadStats(){
+      try{
+        const[{count:members},{count:posts},{count:replies}]=await Promise.all([
+          sb.from('profiles').select('*',{count:'exact',head:true}),
+          sb.from('posts').select('*',{count:'exact',head:true}),
+          sb.from('replies').select('*',{count:'exact',head:true})
+        ]);
+        $('liveStats').innerHTML='<span><strong style="color:var(--text)">'+(members||0)+'</strong> liiget</span><span><strong style="color:var(--text)">'+(posts||0)+'</strong> postitust</span><span><strong style="color:var(--text)">'+(replies||0)+'</strong> vastust</span>';
+      }catch(e){console.error(e)}
+    }
+
     async function init(){
       loadTheme();
       try{
@@ -786,8 +798,9 @@
           $('feed').style.display='block';$('feedGate').style.display='none';
           await loadSinglePost(postId);
         }
-        // Always load Pulss
+        // Always load Pulss and stats
         await loadHeroFeed();
+        loadStats();
         setupRealtime();
       }catch(x){console.error(x)}
     }
