@@ -143,6 +143,13 @@
     .modal-switch{text-align:center;margin-top:16px;font-size:14px;color:var(--muted)}
     .modal-switch a{color:var(--accent2);cursor:pointer}
     .modal-error{color:var(--red);font-size:13px;margin-bottom:10px;display:none}
+    .btn.danger{background:var(--red);border:none;color:#fff}.btn.danger:hover{opacity:.85}
+    .account-menu{display:none;position:absolute;right:0;top:calc(100% + 8px);background:var(--panel-solid);border:1px solid var(--card-border);border-radius:16px;padding:8px;min-width:180px;box-shadow:0 12px 40px rgba(0,0,0,.3);z-index:150}
+    .account-menu.open{display:block}
+    .account-menu button{display:block;width:100%;text-align:left;padding:10px 14px;border:none;background:none;color:var(--text);font-family:inherit;font-size:14px;border-radius:10px;cursor:pointer;transition:.15s}
+    .account-menu button:hover{background:var(--input-bg)}
+    .account-menu .danger-item{color:var(--red)}
+    .account-menu .danger-item:hover{background:rgba(248,113,113,.1)}
     .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--green);color:#000;padding:12px 24px;border-radius:999px;font-weight:700;font-size:14px;z-index:300;opacity:0;transition:opacity .3s;pointer-events:none}
     .toast.show{opacity:1}
     .footer{padding:60px 0 70px;color:var(--muted)}
@@ -154,10 +161,14 @@
   <nav class="nav"><div class="wrap navin">
     <div class="logo"><span class="dot"></span> KRANTS</div>
     <div class="navlinks"><a href="#mis">Mis see on</a><a href="#toimib">Kuidas toimib</a><a href="#ai">AI</a><a href="#voog">Pulss</a></div>
-    <div class="nav-right">
+    <div class="nav-right" style="position:relative">
       <button class="theme-toggle" onclick="toggleTheme()" title="Vaheta teemat">🌙</button>
-      <span class="nav-user" id="navUser"></span>
+      <span class="nav-user" id="navUser" onclick="toggleAccountMenu()" style="cursor:pointer"></span>
       <button class="btn small" id="authBtn" onclick="showAuth()">Loo nimi</button>
+      <div class="account-menu" id="accountMenu">
+        <button onclick="doLogout()">Logi välja</button>
+        <button class="danger-item" onclick="showDeleteConfirm()">Kustuta konto</button>
+      </div>
     </div>
   </div></nav>
 
@@ -262,6 +273,15 @@
     <button class="btn ghost" onclick="hideAuth()" style="width:100%;margin-top:8px">Tagasi</button>
   </div></div>
 
+  <div class="modal-overlay" id="deleteModal"><div class="modal">
+    <h2 style="color:var(--red)">Kustuta konto</h2>
+    <p>See kustutab sinu profiili, kõik postitused, vastused ja reaktsioonid. Seda ei saa tagasi võtta.</p>
+    <div class="modal-error" id="deleteError"></div>
+    <input type="text" id="deleteConfirm" placeholder='Kirjuta "KUSTUTA" kinnitamiseks'>
+    <button class="btn danger" id="deleteBtn" onclick="deleteAccount()">Kustuta kõik ja lahku</button>
+    <button class="btn ghost" onclick="hideDeleteConfirm()" style="width:100%;margin-top:8px">Tagasi</button>
+  </div></div>
+
   <div class="toast" id="toast"></div>
 
   <script>
@@ -286,8 +306,53 @@
     }
 
     // AUTH
-    function showAuth(){if(user){sb.auth.signOut();user=null;profile=null;$('navUser').textContent='';$('authBtn').textContent='Loo nimi';$('composer').style.display='none';$('voogAuthBtn').style.display='inline-flex';toast('Oled välja loginud');return}$('authModal').style.display='flex';$('authError').style.display='none'}
+    function showAuth(){if(user)return;$('authModal').style.display='flex';$('authError').style.display='none'}
     function hideAuth(){$('authModal').style.display='none'}
+
+    // ACCOUNT MENU
+    function toggleAccountMenu(){if(!user)return;const m=$('accountMenu');m.classList.toggle('open')}
+    function closeAccountMenu(){const m=$('accountMenu');if(m)m.classList.remove('open')}
+    document.addEventListener('click',function(e){if(!e.target.closest('.nav-right'))closeAccountMenu()});
+
+    function doLogout(){
+      closeAccountMenu();
+      sb.auth.signOut();user=null;profile=null;
+      $('navUser').textContent='';$('authBtn').textContent='Loo nimi';$('authBtn').style.display='inline-flex';
+      $('composer').style.display='none';$('voogAuthBtn').style.display='inline-flex';
+      toast('Oled välja loginud');loadPosts();
+    }
+
+    // DELETE ACCOUNT
+    function showDeleteConfirm(){closeAccountMenu();$('deleteModal').style.display='flex';$('deleteError').style.display='none';$('deleteConfirm').value=''}
+    function hideDeleteConfirm(){$('deleteModal').style.display='none'}
+
+    async function deleteAccount(){
+      if(!user)return;
+      const confirm=$('deleteConfirm').value.trim();
+      if(confirm!=='KUSTUTA'){$('deleteError').textContent='Kirjuta "KUSTUTA" kinnitamiseks';$('deleteError').style.display='block';return}
+      $('deleteBtn').textContent='Kustutan...';
+      try{
+        const uid=user.id;
+        // Delete all user data in order
+        await sb.from('reactions').delete().eq('user_id',uid);
+        await sb.from('replies').delete().eq('author_id',uid);
+        // Update reply_counts for posts that had user's replies
+        await sb.rpc('refresh_reply_counts').catch(()=>{});
+        await sb.from('posts').delete().eq('author_id',uid);
+        await sb.from('profiles').delete().eq('id',uid);
+        // Sign out
+        await sb.auth.signOut();
+        user=null;profile=null;
+        hideDeleteConfirm();
+        $('navUser').textContent='';$('authBtn').textContent='Loo nimi';$('authBtn').style.display='inline-flex';
+        $('composer').style.display='none';$('voogAuthBtn').style.display='inline-flex';
+        toast('Konto kustutatud. Head aega!');
+        loadPosts();
+      }catch(x){
+        $('deleteError').textContent='Viga: '+x.message;$('deleteError').style.display='block';
+        $('deleteBtn').textContent='Kustuta kõik ja lahku';
+      }
+    }
     function toggleAuthMode(){isSignUp=!isSignUp;$('authTitle').textContent=isSignUp?'Loo nimi':'Logi sisse';$('authSub').textContent=isSignUp?'Vali pseudonüüm ja hakka postitama':'Tere tulemast tagasi';$('authUsername').style.display=isSignUp?'block':'none';$('authSubmit').textContent=isSignUp?'Loo nimi':'Logi sisse';$('authSwitch').innerHTML=isSignUp?'Juba olemas? <a onclick="toggleAuthMode()">Logi sisse</a>':'Pole kontot? <a onclick="toggleAuthMode()">Loo nimi</a>';$('authError').style.display='none'}
 
     async function handleAuth(){
@@ -309,7 +374,7 @@
         }
       }catch(x){err.textContent=x.message||'Midagi läks valesti';err.style.display='block';$('authSubmit').textContent=isSignUp?'Loo nimi':'Logi sisse'}
     }
-    function onLogin(){$('navUser').textContent='@'+profile.username;$('authBtn').textContent='Logi välja';$('composer').style.display='block';$('voogAuthBtn').style.display='none'}
+    function onLogin(){$('navUser').textContent='@'+profile.username;$('authBtn').style.display='none';$('composer').style.display='block';$('voogAuthBtn').style.display='none'}
 
     // POSTS
     function updateCount(){const c=$('postBody').value.length;const el=$('charCount');el.textContent=c+' / 300';el.className='char-count'+(c>280?(c>300?' over':' warn'):'')}
