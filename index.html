@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="et">
+<html lang="et" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -7,41 +7,60 @@
   <meta name="description" content="Krants on eestikeelne avalik mõttevoog. Lühikesed postitused, kiired reaktsioonid, päris Eesti voog." />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <style>
-    :root{--bg:#0b0c0f;--bg2:#12141a;--panel:#171a21;--line:#262b36;--text:#e8ebf0;--muted:#9aa3b2;--accent:#c46b3d;--accent2:#78a6ff;--soft:#d9dee8;--green:#4ade80;--red:#f87171}
+    /* DARK THEME (default) */
+    [data-theme="dark"]{--bg:#0b0c0f;--bg-grad:radial-gradient(circle at 20% 0%,#1a202c 0,#0b0c0f 45%);--panel:rgba(23,26,33,.7);--panel-solid:#171a21;--line:#262b36;--text:#e8ebf0;--muted:#9aa3b2;--accent:#c46b3d;--accent2:#78a6ff;--soft:#d9dee8;--green:#4ade80;--red:#f87171;--nav-bg:rgba(11,12,15,.82);--card-hover:rgba(255,255,255,.12);--card-border:rgba(255,255,255,.07);--input-bg:rgba(255,255,255,.05);--tag-border:rgba(120,166,255,.25);--quote-bg:rgba(255,255,255,.02);--divider:rgba(255,255,255,.06)}
+
+    /* LIGHT THEME */
+    [data-theme="light"]{--bg:#f5f5f0;--bg-grad:radial-gradient(circle at 20% 0%,#e8e4dc 0,#f5f5f0 45%);--panel:rgba(255,255,255,.85);--panel-solid:#ffffff;--line:#d4d0c8;--text:#1a1a1a;--muted:#6b7280;--accent:#c46b3d;--accent2:#3b6fd4;--soft:#374151;--green:#16a34a;--red:#dc2626;--nav-bg:rgba(245,245,240,.9);--card-hover:rgba(0,0,0,.08);--card-border:rgba(0,0,0,.08);--input-bg:rgba(0,0,0,.04);--tag-border:rgba(59,111,212,.3);--quote-bg:rgba(0,0,0,.03);--divider:rgba(0,0,0,.06)}
+
     *{box-sizing:border-box;margin:0;padding:0}
     html{scroll-behavior:smooth}
-    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:radial-gradient(circle at 20% 0%,#1a202c 0,#0b0c0f 45%),var(--bg);color:var(--text);line-height:1.55}
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,sans-serif;background:var(--bg-grad),var(--bg);color:var(--text);line-height:1.55;transition:background .3s,color .3s}
     a{text-decoration:none;color:inherit}
     .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
-    .nav{position:sticky;top:0;z-index:100;background:rgba(11,12,15,.82);backdrop-filter:blur(16px);border-bottom:1px solid rgba(255,255,255,.06)}
+
+    /* NAV */
+    .nav{position:sticky;top:0;z-index:100;background:var(--nav-bg);backdrop-filter:blur(16px);border-bottom:1px solid var(--divider)}
     .navin{display:flex;justify-content:space-between;align-items:center;padding:16px 0}
     .logo{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
     .dot{width:11px;height:11px;border-radius:50%;background:var(--accent);box-shadow:0 0 20px rgba(196,107,61,.5)}
     .navlinks{display:flex;gap:26px;color:var(--muted);font-size:14px}
-    .nav-right{display:flex;gap:12px;align-items:center}
+    .nav-right{display:flex;gap:10px;align-items:center}
     .nav-user{color:var(--accent2);font-weight:600;font-size:14px}
+
+    /* THEME TOGGLE */
+    .theme-toggle{background:none;border:none;cursor:pointer;font-size:20px;padding:6px;border-radius:50%;transition:.2s;line-height:1;color:var(--muted)}
+    .theme-toggle:hover{color:var(--text);transform:scale(1.1)}
+
+    /* BUTTONS */
     .btn{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);padding:12px 20px;border-radius:999px;font-weight:700;font-size:14px;transition:.2s;cursor:pointer;font-family:inherit;color:var(--text);background:transparent}
-    .btn:hover{transform:translateY(-1px);border-color:#394050}
+    .btn:hover{transform:translateY(-1px);border-color:var(--muted)}
     .btn.primary{background:linear-gradient(135deg,var(--accent),#d48a63);border:none;color:#fff}
     .btn.primary:hover{opacity:.9}
     .btn.small{padding:8px 16px;font-size:13px}
     .btn.ghost{border:none;padding:6px 10px;color:var(--muted)}
     .btn.ghost:hover{color:var(--text)}
-    .hero{padding:48px 0 56px;text-align:center}
+
+    /* HERO */
+    .hero{padding:48px 0 40px;text-align:center}
     .kicker{color:var(--accent2);font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
     h1{font-size:clamp(42px,8vw,84px);line-height:.95;margin:14px auto 18px;letter-spacing:-.04em}
     .sub{max-width:760px;font-size:clamp(18px,2vw,24px);color:var(--soft);margin:0 auto}
     .herocta{display:flex;gap:14px;flex-wrap:wrap;margin-top:28px;justify-content:center}
-    .card{background:rgba(23,26,33,.7);border:1px solid rgba(255,255,255,.07);border-radius:24px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.28);backdrop-filter:blur(8px)}
+
+    /* CARDS */
+    .card{background:var(--panel);border:1px solid var(--card-border);border-radius:24px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.12);backdrop-filter:blur(8px);transition:background .3s,border-color .3s}
     .hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:28px;align-items:start;margin-top:42px;text-align:left}
-    .quote{font-size:14px;color:var(--muted);padding:16px 18px;border-left:2px solid var(--accent);background:rgba(255,255,255,.02);border-radius:14px}
+    .quote{font-size:14px;color:var(--muted);padding:16px 18px;border-left:2px solid var(--accent);background:var(--quote-bg);border-radius:14px}
     .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
     .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
     .mini{font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
     .big{font-size:24px;font-weight:800;margin:8px 0 10px}
     .card p{color:var(--muted);margin:0}
     .livefeed{padding:0;overflow:hidden}
-    .feedhead{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.06);background:rgba(255,255,255,.02)}
+    .feedhead{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--divider);background:var(--quote-bg)}
+
+    /* SECTIONS */
     section{padding:30px 0}
     .section-title{font-size:clamp(28px,4vw,44px);margin:0 0 10px;letter-spacing:-.03em}
     .section-sub{max-width:760px;color:var(--muted);font-size:18px;margin:0 0 26px}
@@ -50,52 +69,73 @@
     .statement{font-size:clamp(28px,4vw,54px);line-height:1.02;letter-spacing:-.04em;font-weight:800}
     .statement span{color:var(--accent)}
     .features{padding:0;margin:0}
-    .features li{list-style:none;padding:0 0 16px;margin:0 0 16px;border-bottom:1px solid rgba(255,255,255,.06)}
+    .features li{list-style:none;padding:0 0 16px;margin:0 0 16px;border-bottom:1px solid var(--divider)}
     .features li:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
     .features strong{display:block;margin-bottom:6px}
+
+    /* VOOG */
     .voog-section{padding:20px 0 60px}
     .voog-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
     .voog-title{font-size:28px;font-weight:800;letter-spacing:-.02em}
-    .composer{background:rgba(23,26,33,.65);border:1px solid rgba(255,255,255,.07);border-radius:20px;padding:18px;margin-bottom:20px;backdrop-filter:blur(8px);display:none}
+    .composer{background:var(--panel);border:1px solid var(--card-border);border-radius:20px;padding:18px;margin-bottom:20px;backdrop-filter:blur(8px);display:none;transition:background .3s}
     .composer textarea{width:100%;background:transparent;border:none;color:var(--text);font-family:inherit;font-size:16px;resize:none;outline:none;min-height:60px;line-height:1.5}
     .composer textarea::placeholder{color:var(--muted)}
-    .composer-footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06)}
+    .composer-footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--divider)}
     .composer-left{display:flex;gap:12px;align-items:center}
-    .tag-input{background:transparent;border:1px solid rgba(120,166,255,.25);border-radius:999px;padding:6px 14px;font-size:13px;color:var(--accent2);font-family:inherit;outline:none;width:180px}
-    .tag-input::placeholder{color:rgba(120,166,255,.4)}
+    .tag-input{background:transparent;border:1px solid var(--tag-border);border-radius:999px;padding:6px 14px;font-size:13px;color:var(--accent2);font-family:inherit;outline:none;width:180px}
+    .tag-input::placeholder{color:var(--muted)}
     .char-count{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
-    .char-count.warn{color:var(--accent)}
-    .char-count.over{color:var(--red)}
-    .tabs{display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,.06)}
+    .char-count.warn{color:var(--accent)}.char-count.over{color:var(--red)}
+
+    /* TABS */
+    .tabs{display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid var(--divider)}
     .tab{padding:10px 18px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:.2s;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit}
     .tab.active{color:var(--text);border-bottom-color:var(--accent)}
     .tab:hover{color:var(--text)}
-    .post-card{background:rgba(23,26,33,.55);border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:18px;margin-bottom:12px;transition:border-color .2s;backdrop-filter:blur(6px)}
-    .post-card:hover{border-color:rgba(255,255,255,.12)}
+
+    /* POST CARDS */
+    .post-card{background:var(--panel);border:1px solid var(--card-border);border-radius:18px;padding:18px;margin-bottom:12px;transition:background .3s,border-color .2s;backdrop-filter:blur(6px)}
+    .post-card:hover{border-color:var(--card-hover)}
     .post-meta{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted);margin-bottom:10px}
     .post-handle{font-weight:700;color:var(--text)}
-    .post-tag{display:inline-flex;padding:3px 8px;border:1px solid rgba(120,166,255,.25);border-radius:999px;font-size:11px;color:var(--accent2)}
+    .post-tag{display:inline-flex;padding:3px 8px;border:1px solid var(--tag-border);border-radius:999px;font-size:11px;color:var(--accent2)}
     .post-body{font-size:16px;color:var(--soft);line-height:1.6;word-break:break-word}
-    .post-actions{display:flex;gap:16px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.04)}
+    .post-actions{display:flex;gap:16px;margin-top:12px;padding-top:10px;border-top:1px solid var(--divider)}
     .post-action{display:flex;align-items:center;gap:5px;font-size:13px;color:var(--muted);cursor:pointer;background:none;border:none;font-family:inherit;transition:.15s}
     .post-action:hover{color:var(--text)}
-    .post-action.liked{color:var(--green)}
-    .post-action.disliked{color:var(--red)}
-    .hp{padding:16px 20px;border-top:1px solid rgba(255,255,255,.05)}
+    .post-action.liked{color:var(--green)}.post-action.disliked{color:var(--red)}
+
+    /* REPLIES */
+    .replies-section{margin-top:12px;padding-top:12px;border-top:1px solid var(--divider);display:none}
+    .replies-section.open{display:block}
+    .reply-item{padding:10px 0 10px 16px;border-left:2px solid var(--accent);margin-bottom:8px}
+    .reply-meta{font-size:12px;color:var(--muted);margin-bottom:4px}
+    .reply-meta strong{color:var(--text)}
+    .reply-body{font-size:14px;color:var(--soft);line-height:1.5}
+    .reply-composer{display:flex;gap:8px;margin-top:10px}
+    .reply-input{flex:1;background:var(--input-bg);border:1px solid var(--card-border);border-radius:12px;padding:10px 14px;font-size:14px;color:var(--text);font-family:inherit;outline:none;resize:none;min-height:38px;max-height:80px}
+    .reply-input::placeholder{color:var(--muted)}
+    .reply-input:focus{border-color:var(--accent2)}
+    .reply-send{background:var(--accent);color:#fff;border:none;border-radius:12px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;white-space:nowrap}
+
+    /* HERO FEED PREVIEW */
+    .hp{padding:14px 20px;border-top:1px solid var(--divider)}
     .hp:first-child{border-top:none}
-    .hp-m{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted);margin-bottom:8px}
+    .hp-m{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted);margin-bottom:6px}
     .hp-h{font-weight:700;color:var(--text)}
-    .hp-t{display:inline-flex;padding:4px 8px;border:1px solid rgba(120,166,255,.25);border-radius:999px;font-size:12px;color:var(--accent2);margin-right:8px}
-    .hp p{margin:0;color:var(--soft)}
-    .hp-a{display:flex;gap:18px;margin-top:10px;color:var(--muted);font-size:13px}
+    .hp-t{display:inline-flex;padding:3px 7px;border:1px solid var(--tag-border);border-radius:999px;font-size:11px;color:var(--accent2);margin-right:6px}
+    .hp p{margin:0;color:var(--soft);font-size:14px}
+    .hp-a{display:flex;gap:14px;margin-top:8px;color:var(--muted);font-size:12px}
+
+    /* UTILS */
     .empty{text-align:center;padding:40px 20px;color:var(--muted)}
     .empty h3{font-size:18px;color:var(--text);margin-bottom:6px}
     .loading{text-align:center;padding:30px;color:var(--muted)}
-    .modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:20px}
-    .modal{background:var(--panel);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:32px;width:100%;max-width:400px}
+    .modal-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.55);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:20px}
+    .modal{background:var(--panel-solid);border:1px solid var(--card-border);border-radius:24px;padding:32px;width:100%;max-width:400px}
     .modal h2{font-size:24px;font-weight:800;margin-bottom:6px}
     .modal p{color:var(--muted);font-size:14px;margin-bottom:20px}
-    .modal input{width:100%;padding:14px 16px;background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;color:var(--text);font-family:inherit;font-size:15px;outline:none;margin-bottom:12px}
+    .modal input{width:100%;padding:14px 16px;background:var(--input-bg);border:1px solid var(--line);border-radius:14px;color:var(--text);font-family:inherit;font-size:15px;outline:none;margin-bottom:12px}
     .modal input:focus{border-color:var(--accent2)}
     .modal input::placeholder{color:var(--muted)}
     .modal .btn{width:100%;margin-top:6px;padding:14px}
@@ -105,7 +145,7 @@
     .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--green);color:#000;padding:12px 24px;border-radius:999px;font-weight:700;font-size:14px;z-index:300;opacity:0;transition:opacity .3s;pointer-events:none}
     .toast.show{opacity:1}
     .footer{padding:60px 0 70px;color:var(--muted)}
-    .footerbox{display:flex;justify-content:space-between;gap:22px;align-items:flex-end;border-top:1px solid rgba(255,255,255,.08);padding-top:26px}
+    .footerbox{display:flex;justify-content:space-between;gap:22px;align-items:flex-end;border-top:1px solid var(--divider);padding-top:26px}
     @media(max-width:900px){.hero-grid,.grid-3,.grid-2,.manifesto{grid-template-columns:1fr}.navlinks{display:none}.footerbox{flex-direction:column;align-items:flex-start}}
   </style>
 </head>
@@ -113,7 +153,11 @@
   <nav class="nav"><div class="wrap navin">
     <div class="logo"><span class="dot"></span> KRANTS</div>
     <div class="navlinks"><a href="#mis">Mis see on</a><a href="#toimib">Kuidas toimib</a><a href="#ai">AI</a><a href="#voog">Pulss</a></div>
-    <div class="nav-right"><span class="nav-user" id="navUser"></span><button class="btn small" id="authBtn" onclick="showAuth()">Loo nimi</button></div>
+    <div class="nav-right">
+      <button class="theme-toggle" onclick="toggleTheme()" title="Vaheta teemat">🌙</button>
+      <span class="nav-user" id="navUser"></span>
+      <button class="btn small" id="authBtn" onclick="showAuth()">Loo nimi</button>
+    </div>
   </div></nav>
 
   <header class="hero wrap">
@@ -125,18 +169,18 @@
       <div class="card">
         <div class="quote"><strong>Krants</strong> on koht, kus rahvas võib tulla ja korraks päriselt välja öelda, mida ta näeb, mõtleb või haistab.</div>
         <div style="margin-top:18px" class="grid-2">
-          <div class="card" style="background:rgba(255,255,255,.02)"><div class="mini">Vorm</div><div class="big">300 märki</div><p>Üks mõte korraga. Kiire, lühike, loetav.</p></div>
-          <div class="card" style="background:rgba(255,255,255,.02)"><div class="mini">Toon</div><div class="big">Arusaadav, mõttega sõnum</div><p>Ei pea kõlama nagu pressiesindaja, aga peab midagi kandma.</p></div>
+          <div class="card" style="background:var(--quote-bg)"><div class="mini">Vorm</div><div class="big">300 märki</div><p>Üks mõte korraga. Kiire, lühike, loetav.</p></div>
+          <div class="card" style="background:var(--quote-bg)"><div class="mini">Toon</div><div class="big">Arusaadav, mõttega sõnum</div><p>Ei pea kõlama nagu pressiesindaja, aga peab midagi kandma.</p></div>
         </div>
       </div>
       <div class="card livefeed">
         <div class="feedhead"><strong style="color:var(--accent)">Rahvuslik Pulss</strong><span style="color:var(--muted);font-size:13px">otsevoog</span></div>
-        <div id="heroFeed" style="padding:10px 0"><div class="loading">Laen...</div></div>
+        <div id="heroFeed" style="padding:6px 0"><div class="loading">Laen...</div></div>
       </div>
     </div>
   </header>
 
-  <!-- MÕTTEVOOG — kohe peale hero't -->
+  <!-- MÕTTEVOOG -->
   <section id="voog" class="voog-section"><div class="wrap">
     <div class="voog-header">
       <div class="voog-title" style="color:var(--accent)">Mõttevoog</div>
@@ -191,7 +235,6 @@
     </div>
   </div></section>
 
-  <!-- CTA -->
   <section><div class="wrap">
     <div class="card" style="text-align:center;padding:38px 24px">
       <div class="kicker">Krants on avatud</div>
@@ -226,6 +269,19 @@
     const sb=supabase.createClient(SB_URL,SB_KEY);
     let user=null,profile=null,isSignUp=true,tab='uusim',profs={};
 
+    // THEME
+    function toggleTheme(){
+      const html=document.documentElement;
+      const next=html.getAttribute('data-theme')==='dark'?'light':'dark';
+      html.setAttribute('data-theme',next);
+      document.querySelector('.theme-toggle').textContent=next==='dark'?'🌙':'☀️';
+      try{localStorage.setItem('krants-theme',next)}catch(e){}
+    }
+    function loadTheme(){
+      try{const t=localStorage.getItem('krants-theme');if(t){document.documentElement.setAttribute('data-theme',t);document.querySelector('.theme-toggle').textContent=t==='dark'?'🌙':'☀️'}}catch(e){}
+    }
+
+    // AUTH
     function showAuth(){if(user){sb.auth.signOut();user=null;profile=null;$('navUser').textContent='';$('authBtn').textContent='Loo nimi';$('composer').style.display='none';$('voogAuthBtn').style.display='inline-flex';toast('Oled välja loginud');return}$('authModal').style.display='flex';$('authError').style.display='none'}
     function hideAuth(){$('authModal').style.display='none'}
     function toggleAuthMode(){isSignUp=!isSignUp;$('authTitle').textContent=isSignUp?'Loo nimi':'Logi sisse';$('authSub').textContent=isSignUp?'Vali pseudonüüm ja hakka postitama':'Tere tulemast tagasi';$('authUsername').style.display=isSignUp?'block':'none';$('authSubmit').textContent=isSignUp?'Loo nimi':'Logi sisse';$('authSwitch').innerHTML=isSignUp?'Juba olemas? <a onclick="toggleAuthMode()">Logi sisse</a>':'Pole kontot? <a onclick="toggleAuthMode()">Loo nimi</a>';$('authError').style.display='none'}
@@ -251,6 +307,7 @@
     }
     function onLogin(){$('navUser').textContent='@'+profile.username;$('authBtn').textContent='Logi välja';$('composer').style.display='block';$('voogAuthBtn').style.display='none'}
 
+    // POSTS
     function updateCount(){const c=$('postBody').value.length;const el=$('charCount');el.textContent=c+' / 300';el.className='char-count'+(c>280?(c>300?' over':' warn'):'')}
 
     async function submitPost(){
@@ -281,13 +338,46 @@
       $('feed').innerHTML=posts.map(p=>{
         const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="post-tag">'+esc(p.tag)+'</span>':'',
           rx=ur[p.id],uc=rx===1?' liked':'',dc=rx===-1?' disliked':'';
-        return '<div class="post-card"><div class="post-meta"><span class="post-handle">@'+esc(n)+'</span>'+tg+'<span>'+t+'</span></div><div class="post-body">'+esc(p.body)+'</div><div class="post-actions"><button class="post-action'+uc+'" onclick="react(\''+p.id+'\',1)">▲ '+(p.ups||0)+'</button><button class="post-action'+dc+'" onclick="react(\''+p.id+'\',-1)">▼ '+(p.downs||0)+'</button><button class="post-action">💬 '+(p.reply_count||0)+'</button></div></div>'
+        return '<div class="post-card"><div class="post-meta"><span class="post-handle">@'+esc(n)+'</span>'+tg+'<span>'+t+'</span></div><div class="post-body">'+esc(p.body)+'</div><div class="post-actions"><button class="post-action'+uc+'" onclick="react(\''+p.id+'\',1)">▲ '+(p.ups||0)+'</button><button class="post-action'+dc+'" onclick="react(\''+p.id+'\',-1)">▼ '+(p.downs||0)+'</button><button class="post-action" onclick="toggleReplies(\''+p.id+'\')">💬 <span id="rc-'+p.id+'">'+(p.reply_count||0)+'</span></button></div><div class="replies-section" id="replies-'+p.id+'"><div id="rlist-'+p.id+'"></div>'+(user?'<div class="reply-composer"><textarea class="reply-input" id="rinput-'+p.id+'" placeholder="Vasta..." rows="1"></textarea><button class="reply-send" onclick="submitReply(\''+p.id+'\')">Vasta</button></div>':'')+'</div></div>'
       }).join('');
 
       $('heroFeed').innerHTML=posts.slice(0,3).map(p=>{
         const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="hp-t">'+esc(p.tag)+'</span>':'';
-        return '<div class="hp"><div class="hp-m"><span class="hp-h">@'+esc(n)+'</span><span>'+t+'</span></div><p>'+tg+esc(p.body)+'</p><div class="hp-a"><span>▲ '+(p.ups||0)+'</span><span>▼ '+(p.downs||0)+'</span><span>💬 '+(p.reply_count||0)+'</span></div></div>'
+        return '<div class="hp"><div class="hp-m"><span class="hp-h">@'+esc(n)+'</span><span>'+t+'</span></div><p>'+tg+esc(p.body)+'</p><div class="hp-a"><span>▲ '+(p.ups||0)+'</span><span>💬 '+(p.reply_count||0)+'</span></div></div>'
       }).join('');
+    }
+
+    // REPLIES
+    async function toggleReplies(pid){
+      const el=$('replies-'+pid);
+      if(el.classList.contains('open')){el.classList.remove('open');return}
+      el.classList.add('open');
+      await loadReplies(pid);
+    }
+
+    async function loadReplies(pid){
+      const{data:replies}=await sb.from('replies').select('*').eq('post_id',pid).order('created_at',{ascending:true});
+      if(!replies||!replies.length){$('rlist-'+pid).innerHTML='<div style="padding:8px 0;color:var(--muted);font-size:13px">Veel pole vastuseid. Ole esimene!</div>';return}
+      const aids=[...new Set(replies.map(r=>r.author_id))];
+      const{data:rp}=await sb.from('profiles').select('id,username').in('id',aids);
+      if(rp)rp.forEach(p=>profs[p.id]=p);
+      $('rlist-'+pid).innerHTML=replies.map(r=>{
+        const a=profs[r.author_id],n=a?a.username:'keegi';
+        return '<div class="reply-item"><div class="reply-meta"><strong>@'+esc(n)+'</strong> · '+ago(r.created_at)+'</div><div class="reply-body">'+esc(r.body)+'</div></div>'
+      }).join('');
+    }
+
+    async function submitReply(pid){
+      if(!user){showAuth();return}
+      const input=$('rinput-'+pid);const body=input.value.trim();
+      if(!body)return;if(body.length>300){toast('Liiga pikk!');return}
+      try{
+        const{error}=await sb.from('replies').insert({post_id:pid,author_id:user.id,body});if(error)throw error;
+        input.value='';await loadReplies(pid);
+        // Update reply count display
+        const rc=$('rc-'+pid);if(rc)rc.textContent=parseInt(rc.textContent)+1;
+        toast('Vastatud!');
+      }catch(x){toast('Viga: '+x.message)}
     }
 
     async function react(pid,v){
@@ -300,13 +390,19 @@
     }
 
     function switchTab(t,el){tab=t;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');loadPosts()}
-    function setupRealtime(){sb.channel('public:posts').on('postgres_changes',{event:'INSERT',schema:'public',table:'posts'},()=>loadPosts()).subscribe()}
+    function setupRealtime(){
+      sb.channel('krants-live')
+        .on('postgres_changes',{event:'INSERT',schema:'public',table:'posts'},()=>loadPosts())
+        .on('postgres_changes',{event:'INSERT',schema:'public',table:'replies'},()=>loadPosts())
+        .subscribe();
+    }
     function $(id){return document.getElementById(id)}
     function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
     function ago(ds){const d=Math.floor((new Date()-new Date(ds))/1000);if(d<60)return'just nüüd';if(d<3600)return Math.floor(d/60)+' min tagasi';if(d<86400)return Math.floor(d/3600)+'h tagasi';if(d<604800)return Math.floor(d/86400)+'p tagasi';return new Date(ds).toLocaleDateString('et-EE')}
     function toast(m){const el=$('toast');el.textContent=m;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2500)}
 
     async function init(){
+      loadTheme();
       try{const{data:{session}}=await sb.auth.getSession();
         if(session){user=session.user;const{data:pr}=await sb.from('profiles').select('*').eq('id',session.user.id).single();if(pr){profile=pr;onLogin()}}
         await loadPosts();setupRealtime()
