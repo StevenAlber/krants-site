@@ -238,6 +238,7 @@
           <button class="tab" onclick="switchPulss('populaarsemad',this)">Populaarsemad</button>
           <button class="tab" onclick="switchPulss('arutelu',this)">Arutelu</button>
         </div>
+        <div id="filterBar" style="display:none"></div>
         <div class="hero-feed-scroll"><div id="heroFeed"><div class="loading">Laen...</div></div></div>
       </div>
     </div>
@@ -246,7 +247,7 @@
   <!-- MÕTTEVOOG -->
   <section id="voog" class="voog-section"><div class="wrap">
     <div class="voog-header">
-      <div class="voog-title" style="color:var(--accent)">Mõttevoog</div>
+      <div class="voog-title" style="color:var(--accent)">Minu postitused</div>
       <button class="btn small primary" onclick="showAuth()" id="voogAuthBtn">Loo nimi ja postita</button>
     </div>
     <div class="composer" id="composer">
@@ -289,11 +290,10 @@
         <button class="btn primary small" id="postBtn" onclick="submitPost()">Postita</button>
       </div>
     </div>
-    <div id="filterBar" style="display:none"></div>
     <div id="feed" style="display:none"></div>
     <div id="feedGate" class="card" style="text-align:center;padding:40px 24px;margin-top:16px">
       <div style="font-size:28px;margin-bottom:8px">🔒</div>
-      <div style="font-size:18px;font-weight:700;margin-bottom:8px">Mõttevoog on sinu isiklik ruum</div>
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px">Sinu isiklik postituste ruum</div>
       <p style="color:var(--muted);margin-bottom:18px">Loo nimi, postita oma mõtteid ja jälgi neid siin. Kõik postitused ilmuvad automaatselt Rahvuslikku Pulssi.</p>
       <button class="btn primary" onclick="showAuth()">Liitu</button>
     </div>
@@ -411,7 +411,7 @@
     }
 
     // AUTH
-    function showAuth(){if(user)return;$('authModal').style.display='flex';$('authError').style.display='none'}
+    function showAuth(){if(user)return;$('authModal').style.display='flex';$('authError').style.display='none';$('authEmail').value='';$('authPassword').value='';$('authUsername').value=''}
     function hideAuth(){$('authModal').style.display='none'}
 
     // ACCOUNT MENU
@@ -421,10 +421,13 @@
 
     function doLogout(){
       closeAccountMenu();
-      sb.auth.signOut();user=null;profile=null;
+      sb.auth.signOut();user=null;profile=null;activeTag=null;openReplies.clear();
       $('navUser').textContent='';$('authBtn').textContent='Loo nimi';$('authBtn').style.display='inline-flex';
       $('composer').style.display='none';$('voogAuthBtn').style.display='inline-flex';
       $('feed').style.display='none';$('feedGate').style.display='block';
+      $('filterBar').style.display='none';
+      if($('pulssSearch'))$('pulssSearch').value='';
+      loadHeroFeed();
       toast('Oled välja loginud');
     }
 
@@ -469,7 +472,7 @@
       $('authSubmit').textContent='Oota...';
       try{
         if(isSignUp){
-          const{data:ex}=await sb.from('profiles').select('username').eq('username',u).single();
+          const{data:ex}=await sb.from('profiles').select('username').eq('username',u).maybeSingle();
           if(ex){err.textContent='See kasutajanimi on juba võetud';err.style.display='block';$('authSubmit').textContent='Loo nimi';return}
           const{data,error}=await sb.auth.signUp({email:e,password:p});if(error)throw error;
           const{error:pe}=await sb.from('profiles').insert({id:data.user.id,username:u});if(pe)throw pe;
@@ -547,7 +550,7 @@
     let cachedHeroPosts=[];
     async function loadHeroFeed(){
       const{data:posts}=await sb.from('posts').select('*').order('created_at',{ascending:false}).limit(50);
-      if(!posts||!posts.length)return;
+      if(!posts||!posts.length){$('heroFeed').innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">Voog ootab esimest häält...</div>';cachedHeroPosts=[];return}
       cachedHeroPosts=posts;
       const aids=[...new Set(posts.map(p=>p.author_id))];
       const{data:prs}=await sb.from('profiles').select('id,username').in('id',aids);
@@ -700,9 +703,17 @@
 
     // (Mõttevoog always shows newest first)
 
-    // TAG FILTER
-    function filterByTag(tag){activeTag=tag;loadPosts();document.querySelector('#voog')?.scrollIntoView({behavior:'smooth'})}
-    function clearFilter(){activeTag=null;loadPosts()}
+    // TAG FILTER — filters Pulss, not Mõttevoog
+    function filterByTag(tag){
+      activeTag=tag;
+      const filtered=cachedHeroPosts.filter(p=>p.tag&&p.tag===tag);
+      if(filtered.length)renderHeroFeed(filtered);
+      else $('heroFeed').innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">Pole postitusi tagiga '+esc(tag)+'</div>';
+      // Show filter bar in Pulss area
+      const fb=$('filterBar');
+      if(fb){fb.style.display='flex';fb.className='filter-bar';fb.innerHTML='<span>Filtreerib:</span><span class="filter-tag">'+esc(tag)+'</span><button class="filter-clear" onclick="clearFilter()">✕ Tühjenda</button>'}
+    }
+    function clearFilter(){activeTag=null;$('filterBar').style.display='none';sortAndRenderPulss()}
 
     // SHARE POST
     function sharePost(postId){
@@ -733,7 +744,7 @@
       loadReplies(postId);
       document.querySelector('#voog')?.scrollIntoView({behavior:'smooth'});
     }
-    function clearDeepLink(){history.pushState(null,'',window.location.pathname);activeTag=null;$('filterBar').style.display='none';loadPosts()}
+    function clearDeepLink(){history.pushState(null,'',window.location.pathname);activeTag=null;$('filterBar').style.display='none';if(user){$('feed').style.display='block';loadPosts()}else{$('feed').style.display='none';$('feedGate').style.display='block'}}
 
     // REALTIME
     function setupRealtime(){
