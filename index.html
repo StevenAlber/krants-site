@@ -236,8 +236,8 @@
     <div id="feed" style="display:none"></div>
     <div id="feedGate" class="card" style="text-align:center;padding:40px 24px;margin-top:16px">
       <div style="font-size:28px;margin-bottom:8px">🔒</div>
-      <div style="font-size:18px;font-weight:700;margin-bottom:8px">Mõttevoog on liikmetele</div>
-      <p style="color:var(--muted);margin-bottom:18px">Loo nimi ja saa ligi Eesti avalikule mõttevoole. Postita, reageeri, arutle.</p>
+      <div style="font-size:18px;font-weight:700;margin-bottom:8px">Mõttevoog on sinu isiklik ruum</div>
+      <p style="color:var(--muted);margin-bottom:18px">Loo nimi, postita oma mõtteid ja jälgi neid siin. Kõik postitused ilmuvad automaatselt Rahvuslikku Pulssi.</p>
       <button class="btn primary" onclick="showAuth()">Liitu</button>
     </div>
   </div></section>
@@ -441,13 +441,14 @@
         const{error}=await sb.from('posts').insert({author_id:user.id,body,tag:tag||null});
         if(error)throw error;
         lastPostTime=Date.now();
-        $('postBody').value='';$('postTag').value='';updateCount();toast('Postitatud!');loadPosts();
+        $('postBody').value='';$('postTag').value='';updateCount();toast('Postitatud!');loadPosts();loadHeroFeed();
       }catch(x){toast('Viga: '+x.message)}
       $('postBtn').textContent='Postita';
     }
 
     async function loadPosts(){
-      let q=sb.from('posts').select('*');
+      if(!user)return;
+      let q=sb.from('posts').select('*').eq('author_id',user.id);
       if(activeTag)q=q.eq('tag',activeTag);
       if(tab==='uusim')q=q.order('created_at',{ascending:false});else q=q.order('ups',{ascending:false});
       q=q.limit(50);
@@ -463,8 +464,7 @@
       const{data:posts,error}=await q;
       if(error){$('feed').innerHTML='<div class="empty"><h3>Viga</h3><p>'+error.message+'</p></div>';return}
       if(!posts||!posts.length){
-        $('feed').innerHTML='<div class="empty"><h3>Voog on tühi</h3><p>Ole esimene kes postitab!</p></div>';
-        $('heroFeed').innerHTML='<div style="padding:20px;text-align:center;color:var(--muted)">Voog ootab esimest häält...</div>';return}
+        $('feed').innerHTML='<div class="empty"><h3>Sul pole veel postitusi</h3><p>Kirjuta oma esimene mõte!</p></div>';return}
       const aids=[...new Set(posts.map(p=>p.author_id))];
       const{data:prs}=await sb.from('profiles').select('id,username').in('id',aids);
       if(prs)prs.forEach(p=>profs[p.id]=p);
@@ -488,8 +488,7 @@
         }
       }
 
-      // Update hero feed too
-      renderHeroFeed(posts);
+      // Pulss updates separately via loadHeroFeed()
     }
 
     // Render hero feed from given posts array (avoids extra DB call)
@@ -651,7 +650,7 @@
     // REALTIME
     function setupRealtime(){
       sb.channel('krants-live')
-        .on('postgres_changes',{event:'INSERT',schema:'public',table:'posts'},()=>loadPosts())
+        .on('postgres_changes',{event:'INSERT',schema:'public',table:'posts'},()=>{if(user)loadPosts();loadHeroFeed()})
         .on('postgres_changes',{event:'INSERT',schema:'public',table:'replies'},async(payload)=>{
           const pid=payload.new?.post_id;
           if(!pid)return;
