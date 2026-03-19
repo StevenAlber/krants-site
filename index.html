@@ -482,7 +482,7 @@
       const items=posts.slice(0,20);
       $('heroFeed').innerHTML=items.map(p=>{
         const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="hp-t" onclick="filterByTag(\''+esc(p.tag)+'\')">'+esc(p.tag)+'</span>':'';
-        return '<div class="hp"><div class="hp-m"><span class="hp-h" onclick="showProfile(\''+p.author_id+'\')">@'+esc(n)+'</span><span>'+t+'</span></div><p>'+tg+esc(p.body)+'</p><div class="hp-a"><span>▲ '+(p.ups||0)+'</span><span>💬 '+(p.reply_count||0)+'</span></div></div>'
+        return '<div class="hp"><div class="hp-m"><span class="hp-h" onclick="showProfile(\''+p.author_id+'\')">@'+esc(n)+'</span><span>'+t+'</span></div><p>'+tg+esc(p.body)+'</p><div class="hp-a"><span>▲ '+(p.ups||0)+'</span><span>💬 '+(p.reply_count||0)+'</span><span style="cursor:pointer" onclick="sharePost(\''+p.id+'\')">🔗 Jaga</span></div></div>'
       }).join('');
     }
 
