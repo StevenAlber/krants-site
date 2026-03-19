@@ -233,6 +233,11 @@
         <div style="padding:10px 16px;border-bottom:1px solid var(--divider)">
           <input type="text" id="pulssSearch" placeholder="Otsi postitustest..." oninput="searchPulss()" style="width:100%;background:var(--input-bg);border:1px solid var(--card-border);border-radius:12px;padding:8px 14px;font-size:13px;color:var(--text);font-family:inherit;outline:none">
         </div>
+        <div class="tabs" style="padding:0 16px;margin:0;border-bottom:1px solid var(--divider)">
+          <button class="tab active" onclick="switchPulss('uusimad',this)">Uusimad</button>
+          <button class="tab" onclick="switchPulss('populaarsemad',this)">Populaarsemad</button>
+          <button class="tab" onclick="switchPulss('arutelu',this)">Arutelu</button>
+        </div>
         <div class="hero-feed-scroll"><div id="heroFeed"><div class="loading">Laen...</div></div></div>
       </div>
     </div>
@@ -247,11 +252,43 @@
     <div class="composer" id="composer">
       <textarea id="postBody" placeholder="Mis sul mõttes on? (kuni 300 märki)" maxlength="300" oninput="updateCount()"></textarea>
       <div class="composer-footer">
-        <div class="composer-left"><input type="text" class="tag-input" id="postTag" placeholder="#teema (max 40 märki)" maxlength="40"><span class="char-count" id="charCount">0 / 300</span></div>
+        <div class="composer-left">
+          <select id="postTag" style="background:var(--input-bg);border:1px solid var(--tag-border);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--accent2);font-family:inherit;outline:none;cursor:pointer;appearance:none;-webkit-appearance:none;padding-right:24px;background-image:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22><path d=%22M2 4l4 4 4-4%22 fill=%2278a6ff%22/></svg>');background-repeat:no-repeat;background-position:right 8px center">
+            <option value="">Vali teema</option>
+            <optgroup label="Ühiskond">
+              <option value="#Eesti">#Eesti</option>
+              <option value="#Poliitika">#Poliitika</option>
+              <option value="#Majandus">#Majandus</option>
+              <option value="#Haridus">#Haridus</option>
+              <option value="#Tervishoid">#Tervishoid</option>
+              <option value="#Julgeolek">#Julgeolek</option>
+            </optgroup>
+            <optgroup label="Igapäev">
+              <option value="#Elu">#Elu</option>
+              <option value="#Töö">#Töö</option>
+              <option value="#Kultuur">#Kultuur</option>
+              <option value="#Sport">#Sport</option>
+              <option value="#Loodus">#Loodus</option>
+              <option value="#Toit">#Toit</option>
+            </optgroup>
+            <optgroup label="Digitaalne">
+              <option value="#Tech">#Tech</option>
+              <option value="#AI">#AI</option>
+              <option value="#Meedia">#Meedia</option>
+              <option value="#Krüpto">#Krüpto</option>
+            </optgroup>
+            <optgroup label="Muu">
+              <option value="#Küsimus">#Küsimus</option>
+              <option value="#Vihje">#Vihje</option>
+              <option value="#Huumor">#Huumor</option>
+              <option value="#Krants">#Krants</option>
+            </optgroup>
+          </select>
+          <span class="char-count" id="charCount">0 / 300</span>
+        </div>
         <button class="btn primary small" id="postBtn" onclick="submitPost()">Postita</button>
       </div>
     </div>
-    <div class="tabs" id="feedTabs" style="display:none"><button class="tab active" onclick="switchTab('uusim',this)">Uusim</button><button class="tab" onclick="switchTab('populaarne',this)">Populaarne</button></div>
     <div id="filterBar" style="display:none"></div>
     <div id="feed" style="display:none"></div>
     <div id="feedGate" class="card" style="text-align:center;padding:40px 24px;margin-top:16px">
@@ -352,7 +389,7 @@
     const SB_URL='https://meqkljecfrbsvzdyafrr.supabase.co';
     const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1lcWtsamVjZnJic3Z6ZHlhZnJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4ODE5MTcsImV4cCI6MjA4OTQ1NzkxN30.H4nlKFpYI_EmksnBLK7NQURhTw26-BrdM81kb9FctpE';
     const sb=supabase.createClient(SB_URL,SB_KEY);
-    let user=null,profile=null,isSignUp=true,tab='uusim',profs={},activeTag=null;
+    let user=null,profile=null,isSignUp=true,tab='uusim',profs={},activeTag=null,pulssSort='uusimad';
     let lastPostTime=0,lastReplyTime=0,lastSignupTime=0;
     const POST_COOLDOWN=30000; // 30 sec between posts
     const REPLY_COOLDOWN=10000; // 10 sec between replies
@@ -387,7 +424,7 @@
       sb.auth.signOut();user=null;profile=null;
       $('navUser').textContent='';$('authBtn').textContent='Loo nimi';$('authBtn').style.display='inline-flex';
       $('composer').style.display='none';$('voogAuthBtn').style.display='inline-flex';
-      $('feedTabs').style.display='none';$('feed').style.display='none';$('feedGate').style.display='block';
+      $('feed').style.display='none';$('feedGate').style.display='block';
       toast('Oled välja loginud');
     }
 
@@ -415,7 +452,7 @@
         hideDeleteConfirm();
         $('navUser').textContent='';$('authBtn').textContent='Loo nimi';$('authBtn').style.display='inline-flex';
         $('composer').style.display='none';$('voogAuthBtn').style.display='inline-flex';
-        $('feedTabs').style.display='none';$('feed').style.display='none';$('feedGate').style.display='block';
+        $('feed').style.display='none';$('feedGate').style.display='block';
         toast('Konto kustutatud. Head aega!');
       }catch(x){
         $('deleteError').textContent='Viga: '+x.message;$('deleteError').style.display='block';
@@ -444,7 +481,7 @@
         }
       }catch(x){err.textContent=x.message||'Midagi läks valesti';err.style.display='block';$('authSubmit').textContent=isSignUp?'Loo nimi':'Logi sisse'}
     }
-    function onLogin(){$('navUser').textContent='@'+profile.username;$('authBtn').style.display='none';$('composer').style.display='block';$('voogAuthBtn').style.display='none';$('feedTabs').style.display='flex';$('feed').style.display='block';$('feedGate').style.display='none';loadPosts()}
+    function onLogin(){$('navUser').textContent='@'+profile.username;$('authBtn').style.display='none';$('composer').style.display='block';$('voogAuthBtn').style.display='none';$('feed').style.display='block';$('feedGate').style.display='none';loadPosts()}
 
     // POSTS
     function updateCount(){const c=$('postBody').value.length;const el=$('charCount');el.textContent=c+' / 300';el.className='char-count'+(c>280?(c>300?' over':' warn'):'')}
@@ -468,19 +505,7 @@
 
     async function loadPosts(){
       if(!user)return;
-      let q=sb.from('posts').select('*').eq('author_id',user.id);
-      if(activeTag)q=q.eq('tag',activeTag);
-      if(tab==='uusim')q=q.order('created_at',{ascending:false});else q=q.order('ups',{ascending:false});
-      q=q.limit(50);
-
-      // Update filter bar
-      if(activeTag){
-        $('filterBar').style.display='flex';
-        $('filterBar').className='filter-bar';
-        $('filterBar').innerHTML='<span>Filtreerib:</span><span class="filter-tag">'+esc(activeTag)+'</span><button class="filter-clear" onclick="clearFilter()">✕ Tühjenda</button>';
-      }else{
-        $('filterBar').style.display='none';
-      }
+      let q=sb.from('posts').select('*').eq('author_id',user.id).order('created_at',{ascending:false}).limit(50);
       const{data:posts,error}=await q;
       if(error){$('feed').innerHTML='<div class="empty"><h3>Viga</h3><p>'+error.message+'</p></div>';return}
       if(!posts||!posts.length){
@@ -528,12 +553,12 @@
       const{data:prs}=await sb.from('profiles').select('id,username').in('id',aids);
       if(prs)prs.forEach(p=>profs[p.id]=p);
       const searchVal=$('pulssSearch')?$('pulssSearch').value.trim().toLowerCase():'';
-      if(searchVal)searchPulss();else renderHeroFeed(posts);
+      if(searchVal)searchPulss();else sortAndRenderPulss();
     }
 
     function searchPulss(){
       const q=$('pulssSearch').value.trim().toLowerCase();
-      if(!q){renderHeroFeed(cachedHeroPosts);return}
+      if(!q){sortAndRenderPulss();return}
       const filtered=cachedHeroPosts.filter(p=>{
         const author=profs[p.author_id];
         const name=author?author.username.toLowerCase():'';
@@ -544,6 +569,21 @@
         return;
       }
       renderHeroFeed(filtered);
+    }
+
+    function switchPulss(sort,el){
+      pulssSort=sort;
+      document.querySelectorAll('.livefeed .tab').forEach(t=>t.classList.remove('active'));
+      el.classList.add('active');
+      sortAndRenderPulss();
+    }
+
+    function sortAndRenderPulss(){
+      let sorted=[...cachedHeroPosts];
+      if(pulssSort==='populaarsemad')sorted.sort((a,b)=>(b.ups||0)-(a.ups||0));
+      else if(pulssSort==='arutelu')sorted.sort((a,b)=>(b.reply_count||0)-(a.reply_count||0));
+      // uusimad = default DB order (newest first)
+      renderHeroFeed(sorted);
     }
 
     // PROFILE MODAL
@@ -658,7 +698,7 @@
       }catch(x){console.error(x)}
     }
 
-    function switchTab(t,el){tab=t;document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');loadPosts()}
+    // (Mõttevoog always shows newest first)
 
     // TAG FILTER
     function filterByTag(tag){activeTag=tag;loadPosts();document.querySelector('#voog')?.scrollIntoView({behavior:'smooth'})}
@@ -732,7 +772,7 @@
         const params=new URLSearchParams(window.location.search);
         const postId=params.get('post');
         if(postId){
-          $('feedTabs').style.display='flex';$('feed').style.display='block';$('feedGate').style.display='none';
+          $('feed').style.display='block';$('feedGate').style.display='none';
           await loadSinglePost(postId);
         }
         // Always load Pulss
