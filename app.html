@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="et">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Krants — Eesti avalik mõttevoog</title>
+  <meta name="description" content="Krants on eestikeelne avalik mõttevoog. Lühikesed postitused, kiired reaktsioonid, päris Eesti voog." />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/supabase/2.39.3/umd/supabase.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b0c0f;
+      --bg2: #12141a;
+      --panel: #171a21;
+      --line: #262b36;
+      --text: #e8ebf0;
+      --muted: #9aa3b2;
+      --accent: #c46b3d;
+      --accent2: #78a6ff;
+      --soft: #d9dee8;
+      --green: #4ade80;
+      --red: #f87171;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      min-height: 100vh;
+    }
+
+    a { text-decoration: none; color: inherit; }
+
+    /* NAV */
+    .nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(11,12,15,.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .navin {
+      max-width: 720px; margin: 0 auto; padding: 14px 20px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 800; font-size: 17px; letter-spacing: .04em; text-transform: uppercase;
+    }
+    .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--accent); box-shadow: 0 0 16px rgba(196,107,61,.5);
+    }
+    .nav-actions { display: flex; gap: 10px; align-items: center; }
+    .nav-user { color: var(--accent2); font-weight: 600; font-size: 14px; }
+
+    /* BUTTONS */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      border: 1px solid var(--line); padding: 10px 18px; border-radius: 999px;
+      font-weight: 700; font-size: 14px; cursor: pointer; transition: .2s;
+      font-family: inherit; color: var(--text); background: transparent;
+    }
+    .btn:hover { border-color: #394050; transform: translateY(-1px); }
+    .btn.primary {
+      background: linear-gradient(135deg, var(--accent), #d48a63);
+      border: none; color: #fff;
+    }
+    .btn.primary:hover { opacity: .9; }
+    .btn.small { padding: 6px 14px; font-size: 13px; }
+    .btn.ghost { border: none; padding: 6px 10px; color: var(--muted); }
+    .btn.ghost:hover { color: var(--text); }
+
+    /* LAYOUT */
+    .container { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+
+    /* COMPOSER */
+    .composer {
+      background: var(--panel); border: 1px solid rgba(255,255,255,.07);
+      border-radius: 20px; padding: 18px; margin: 20px 0;
+    }
+    .composer textarea {
+      width: 100%; background: transparent; border: none; color: var(--text);
+      font-family: inherit; font-size: 16px; resize: none; outline: none;
+      min-height: 60px; line-height: 1.5;
+    }
+    .composer textarea::placeholder { color: var(--muted); }
+    .composer-footer {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.06);
+    }
+    .char-count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .char-count.warn { color: var(--accent); }
+    .char-count.over { color: var(--red); }
+    .tag-input {
+      background: transparent; border: 1px solid rgba(120,166,255,.25);
+      border-radius: 999px; padding: 4px 10px; font-size: 12px;
+      color: var(--accent2); font-family: inherit; outline: none; width: 100px;
+    }
+    .tag-input::placeholder { color: rgba(120,166,255,.4); }
+
+    /* FEED */
+    .feed { padding-bottom: 80px; }
+    .post-card {
+      background: var(--panel); border: 1px solid rgba(255,255,255,.07);
+      border-radius: 18px; padding: 18px; margin-bottom: 12px;
+      transition: border-color .2s;
+    }
+    .post-card:hover { border-color: rgba(255,255,255,.12); }
+    .post-meta {
+      display: flex; gap: 10px; align-items: center;
+      font-size: 13px; color: var(--muted); margin-bottom: 10px;
+    }
+    .post-handle { font-weight: 700; color: var(--text); }
+    .post-tag {
+      display: inline-flex; padding: 3px 8px;
+      border: 1px solid rgba(120,166,255,.25); border-radius: 999px;
+      font-size: 11px; color: var(--accent2);
+    }
+    .post-body {
+      font-size: 16px; color: var(--soft); line-height: 1.6;
+      word-break: break-word;
+    }
+    .post-actions {
+      display: flex; gap: 16px; margin-top: 12px;
+      padding-top: 10px; border-top: 1px solid rgba(255,255,255,.04);
+    }
+    .post-action {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 13px; color: var(--muted); cursor: pointer;
+      background: none; border: none; font-family: inherit; transition: .15s;
+    }
+    .post-action:hover { color: var(--text); }
+    .post-action.liked { color: var(--green); }
+    .post-action.disliked { color: var(--red); }
+
+    /* AUTH MODAL */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(0,0,0,.7); backdrop-filter: blur(8px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .modal {
+      background: var(--panel); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 24px; padding: 32px; width: 100%; max-width: 400px;
+    }
+    .modal h2 {
+      font-size: 24px; font-weight: 800; margin-bottom: 6px;
+    }
+    .modal p { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+    .modal input {
+      width: 100%; padding: 14px 16px; background: rgba(255,255,255,.05);
+      border: 1px solid var(--line); border-radius: 14px; color: var(--text);
+      font-family: inherit; font-size: 15px; outline: none; margin-bottom: 12px;
+    }
+    .modal input:focus { border-color: var(--accent2); }
+    .modal input::placeholder { color: var(--muted); }
+    .modal .btn { width: 100%; margin-top: 6px; padding: 14px; }
+    .modal-switch {
+      text-align: center; margin-top: 16px; font-size: 14px; color: var(--muted);
+    }
+    .modal-switch a { color: var(--accent2); cursor: pointer; }
+    .modal-error {
+      color: var(--red); font-size: 13px; margin-bottom: 10px;
+      display: none;
+    }
+
+    /* EMPTY STATE */
+    .empty {
+      text-align: center; padding: 60px 20px; color: var(--muted);
+    }
+    .empty h3 { font-size: 20px; color: var(--text); margin-bottom: 8px; }
+
+    /* LOADING */
+    .loading {
+      text-align: center; padding: 40px; color: var(--muted);
+    }
+
+    /* TOAST */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: var(--green); color: #000; padding: 12px 24px;
+      border-radius: 999px; font-weight: 700; font-size: 14px;
+      z-index: 300; opacity: 0; transition: opacity .3s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+
+    /* TABS */
+    .tabs {
+      display: flex; gap: 0; margin: 16px 0 4px;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .tab {
+      padding: 10px 18px; font-size: 14px; font-weight: 600;
+      color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent;
+      transition: .2s; background: none; border-top: none; border-left: none; border-right: none;
+      font-family: inherit;
+    }
+    .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+    .tab:hover { color: var(--text); }
+
+    /* RESPONSIVE */
+    @media (max-width: 600px) {
+      .navin { padding: 12px 16px; }
+      .container { padding: 0 12px; }
+      .modal { padding: 24px; margin: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="navin">
+      <div class="logo"><span class="dot"></span> KRANTS</div>
+      <div class="nav-actions">
+        <span class="nav-user" id="navUser"></span>
+        <button class="btn small" id="authBtn" onclick="showAuth()">Loo nimi</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <div class="container">
+
+    <!-- COMPOSER (hidden until logged in) -->
+    <div class="composer" id="composer" style="display:none">
+      <textarea id="postBody" placeholder="Mis sul mõttes on? (kuni 300 märki)" maxlength="300" oninput="updateCount()"></textarea>
+      <div class="composer-footer">
+        <div style="display:flex;gap:10px;align-items:center">
+          <input type="text" class="tag-input" id="postTag" placeholder="#teema" maxlength="30">
+          <span class="char-count" id="charCount">0 / 300</span>
+        </div>
+        <button class="btn primary small" id="postBtn" onclick="submitPost()">Postita</button>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('uusim')">Uusim</button>
+      <button class="tab" onclick="switchTab('populaarne')">Populaarne</button>
+    </div>
+
+    <!-- FEED -->
+    <div class="feed" id="feed">
+      <div class="loading">Laen voogu...</div>
+    </div>
+
+  </div>
+
+  <!-- AUTH MODAL -->
+  <div class="modal-overlay" id="authModal" style="display:none">
+    <div class="modal">
+      <h2 id="authTitle">Loo nimi</h2>
+      <p id="authSub">Vali pseudonüüm ja hakka postitama</p>
+      <div class="modal-error" id="authError"></div>
+      <input type="text" id="authUsername" placeholder="Kasutajanimi (nt Kati48)" style="display:none">
+      <input type="email" id="authEmail" placeholder="E-mail">
+      <input type="password" id="authPassword" placeholder="Parool">
+      <button class="btn primary" id="authSubmit" onclick="handleAuth()">Loo nimi</button>
+      <div class="modal-switch" id="authSwitch">
+        Juba olemas? <a onclick="toggleAuthMode()">Logi sisse</a>
+      </div>
+      <button class="btn ghost" onclick="hideAuth()" style="width:100%;margin-top:8px">Tagasi</button>
+    </div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ========== SUPABASE INIT ==========
+    const SUPABASE_URL = 'https://meqkljecfrbsvzdyafrr.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1lcWtsamVjZnJic3Z6ZHlhZnJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4ODE5MTcsImV4cCI6MjA4OTQ1NzkxN30.H4nlKFpYI_EmksnBLK7NQURhTw26-BrdM81kb9FctpE';
+    
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let currentUser = null;
+    let currentProfile = null;
+    let isSignUp = true;
+    let currentTab = 'uusim';
+    let profiles = {};
+
+    // ========== AUTH ==========
+    function showAuth() {
+      if (currentUser) {
+        // Logout
+        sb.auth.signOut();
+        currentUser = null;
+        currentProfile = null;
+        document.getElementById('navUser').textContent = '';
+        document.getElementById('authBtn').textContent = 'Loo nimi';
+        document.getElementById('composer').style.display = 'none';
+        toast('Oled välja loginud');
+        return;
+      }
+      document.getElementById('authModal').style.display = 'flex';
+      document.getElementById('authError').style.display = 'none';
+    }
+
+    function hideAuth() {
+      document.getElementById('authModal').style.display = 'none';
+    }
+
+    function toggleAuthMode() {
+      isSignUp = !isSignUp;
+      document.getElementById('authTitle').textContent = isSignUp ? 'Loo nimi' : 'Logi sisse';
+      document.getElementById('authSub').textContent = isSignUp ? 'Vali pseudonüüm ja hakka postitama' : 'Tere tulemast tagasi';
+      document.getElementById('authUsername').style.display = isSignUp ? 'block' : 'none';
+      document.getElementById('authSubmit').textContent = isSignUp ? 'Loo nimi' : 'Logi sisse';
+      document.getElementById('authSwitch').innerHTML = isSignUp
+        ? 'Juba olemas? <a onclick="toggleAuthMode()">Logi sisse</a>'
+        : 'Pole kontot? <a onclick="toggleAuthMode()">Loo nimi</a>';
+      document.getElementById('authError').style.display = 'none';
+    }
+
+    async function handleAuth() {
+      const email = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+      const username = document.getElementById('authUsername').value.trim();
+      const errorEl = document.getElementById('authError');
+
+      if (!email || !password) {
+        errorEl.textContent = 'Täida kõik väljad';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      if (isSignUp && (!username || username.length < 2)) {
+        errorEl.textContent = 'Kasutajanimi peab olema vähemalt 2 tähemärki';
+        errorEl.style.display = 'block';
+        return;
+      }
+
+      document.getElementById('authSubmit').textContent = 'Oota...';
+
+      try {
+        if (isSignUp) {
+          // Check if username taken
+          const { data: existing } = await sb.from('profiles').select('username').eq('username', username).single();
+          if (existing) {
+            errorEl.textContent = 'See kasutajanimi on juba võetud';
+            errorEl.style.display = 'block';
+            document.getElementById('authSubmit').textContent = 'Loo nimi';
+            return;
+          }
+
+          const { data, error } = await sb.auth.signUp({ email, password });
+          if (error) throw error;
+
+          // Create profile
+          const { error: profileError } = await sb.from('profiles').insert({
+            id: data.user.id,
+            username: username
+          });
+          if (profileError) throw profileError;
+
+          currentUser = data.user;
+          currentProfile = { username };
+          hideAuth();
+          onLogin();
+          toast('Tere tulemast, @' + username + '!');
+        } else {
+          const { data, error } = await sb.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+          currentUser = data.user;
+          
+          // Get profile
+          const { data: profile } = await sb.from('profiles').select('*').eq('id', data.user.id).single();
+          currentProfile = profile;
+          hideAuth();
+          onLogin();
+          toast('Tere tagasi, @' + profile.username + '!');
+        }
+      } catch (err) {
+        errorEl.textContent = err.message || 'Midagi läks valesti';
+        errorEl.style.display = 'block';
+        document.getElementById('authSubmit').textContent = isSignUp ? 'Loo nimi' : 'Logi sisse';
+      }
+    }
+
+    function onLogin() {
+      document.getElementById('navUser').textContent = '@' + currentProfile.username;
+      document.getElementById('authBtn').textContent = 'Logi välja';
+      document.getElementById('composer').style.display = 'block';
+    }
+
+    // ========== POSTS ==========
+    function updateCount() {
+      const body = document.getElementById('postBody').value;
+      const count = body.length;
+      const el = document.getElementById('charCount');
+      el.textContent = count + ' / 300';
+      el.className = 'char-count' + (count > 280 ? (count > 300 ? ' over' : ' warn') : '');
+    }
+
+    async function submitPost() {
+      if (!currentUser) { showAuth(); return; }
+      
+      const body = document.getElementById('postBody').value.trim();
+      let tag = document.getElementById('postTag').value.trim();
+      
+      if (!body) return;
+      if (body.length > 300) { toast('Liiga pikk! Max 300 märki'); return; }
+      
+      // Clean tag
+      if (tag && !tag.startsWith('#')) tag = '#' + tag;
+      if (tag === '#') tag = '';
+
+      document.getElementById('postBtn').textContent = '...';
+
+      try {
+        const { error } = await sb.from('posts').insert({
+          author_id: currentUser.id,
+          body: body,
+          tag: tag || null
+        });
+        if (error) throw error;
+
+        document.getElementById('postBody').value = '';
+        document.getElementById('postTag').value = '';
+        updateCount();
+        toast('Postitatud!');
+        loadPosts();
+      } catch (err) {
+        toast('Viga: ' + err.message);
+      }
+      
+      document.getElementById('postBtn').textContent = 'Postita';
+    }
+
+    async function loadPosts() {
+      const feed = document.getElementById('feed');
+      
+      let query = sb.from('posts').select('*');
+      
+      if (currentTab === 'uusim') {
+        query = query.order('created_at', { ascending: false });
+      } else {
+        query = query.order('ups', { ascending: false });
+      }
+      
+      query = query.limit(50);
+      
+      const { data: posts, error } = await query;
+      
+      if (error) {
+        feed.innerHTML = '<div class="empty"><h3>Viga voo laadimisel</h3><p>' + error.message + '</p></div>';
+        return;
+      }
+
+      if (!posts || posts.length === 0) {
+        feed.innerHTML = '<div class="empty"><h3>Voog on tühi</h3><p>Ole esimene kes postitab!</p></div>';
+        return;
+      }
+
+      // Load profiles for all authors
+      const authorIds = [...new Set(posts.map(p => p.author_id))];
+      const { data: profs } = await sb.from('profiles').select('id, username').in('id', authorIds);
+      if (profs) profs.forEach(p => profiles[p.id] = p);
+
+      // Load user reactions
+      let userReactions = {};
+      if (currentUser) {
+        const { data: reactions } = await sb.from('reactions')
+          .select('post_id, value')
+          .eq('user_id', currentUser.id);
+        if (reactions) reactions.forEach(r => userReactions[r.post_id] = r.value);
+      }
+
+      feed.innerHTML = posts.map(post => {
+        const author = profiles[post.author_id];
+        const username = author ? author.username : 'keegi';
+        const time = timeAgo(post.created_at);
+        const tag = post.tag ? `<span class="post-tag">${esc(post.tag)}</span>` : '';
+        const reaction = userReactions[post.id];
+        const upClass = reaction === 1 ? ' liked' : '';
+        const downClass = reaction === -1 ? ' disliked' : '';
+
+        return `<div class="post-card">
+          <div class="post-meta">
+            <span class="post-handle">@${esc(username)}</span>
+            ${tag}
+            <span>${time}</span>
+          </div>
+          <div class="post-body">${esc(post.body)}</div>
+          <div class="post-actions">
+            <button class="post-action${upClass}" onclick="react('${post.id}', 1)">▲ ${post.ups || 0}</button>
+            <button class="post-action${downClass}" onclick="react('${post.id}', -1)">▼ ${post.downs || 0}</button>
+            <button class="post-action" onclick="toast('Vastused tulevad peagi!')">💬 ${post.reply_count || 0}</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    async function react(postId, value) {
+      if (!currentUser) { showAuth(); return; }
+
+      try {
+        // Check existing reaction
+        const { data: existing } = await sb.from('reactions')
+          .select('*')
+          .eq('post_id', postId)
+          .eq('user_id', currentUser.id)
+          .single();
+
+        if (existing) {
+          if (existing.value === value) {
+            // Remove reaction
+            await sb.from('reactions').delete().eq('id', existing.id);
+            // Update post counts
+            if (value === 1) await sb.rpc('decrement_ups', { post_id: postId }).catch(() => {});
+            else await sb.rpc('decrement_downs', { post_id: postId }).catch(() => {});
+          } else {
+            // Change reaction
+            await sb.from('reactions').update({ value }).eq('id', existing.id);
+          }
+        } else {
+          // New reaction
+          await sb.from('reactions').insert({ post_id: postId, user_id: currentUser.id, value });
+          // Update post counts
+          if (value === 1) {
+            await sb.from('posts').update({ ups: sb.raw ? undefined : undefined }).eq('id', postId);
+          }
+        }
+        loadPosts();
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      event.target.classList.add('active');
+      loadPosts();
+    }
+
+    // ========== REALTIME ==========
+    function setupRealtime() {
+      sb.channel('public:posts')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, () => {
+          loadPosts();
+        })
+        .subscribe();
+    }
+
+    // ========== HELPERS ==========
+    function esc(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function timeAgo(dateStr) {
+      const now = new Date();
+      const date = new Date(dateStr);
+      const diff = Math.floor((now - date) / 1000);
+      if (diff < 60) return 'just nüüd';
+      if (diff < 3600) return Math.floor(diff / 60) + ' min tagasi';
+      if (diff < 86400) return Math.floor(diff / 3600) + 'h tagasi';
+      if (diff < 604800) return Math.floor(diff / 86400) + 'p tagasi';
+      return date.toLocaleDateString('et-EE');
+    }
+
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 2500);
+    }
+
+    // ========== INIT ==========
+    async function init() {
+      // Check existing session
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) {
+        currentUser = session.user;
+        const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).single();
+        if (profile) {
+          currentProfile = profile;
+          onLogin();
+        }
+      }
+      
+      loadPosts();
+      setupRealtime();
+    }
+
+    init();
+  </script>
+</body>
+</html>
