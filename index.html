@@ -58,7 +58,7 @@
     .big{font-size:24px;font-weight:800;margin:8px 0 10px}
     .card p{color:var(--muted);margin:0}
     .livefeed{padding:0;overflow:hidden;display:flex;flex-direction:column}
-    .hero-feed-scroll{max-height:420px;overflow-y:auto;padding:6px 0;-webkit-overflow-scrolling:touch}
+    .hero-feed-scroll{max-height:520px;overflow-y:auto;padding:6px 0;-webkit-overflow-scrolling:touch}
     .hero-feed-scroll::-webkit-scrollbar{width:4px}
     .hero-feed-scroll::-webkit-scrollbar-track{background:transparent}
     .hero-feed-scroll::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
@@ -468,13 +468,22 @@
       const aids=[...new Set(posts.map(p=>p.author_id))];
       const{data:prs}=await sb.from('profiles').select('id,username').in('id',aids);
       if(prs)prs.forEach(p=>profs[p.id]=p);
-      let ur={};
-      if(user){const{data:rx}=await sb.from('reactions').select('post_id,value').eq('user_id',user.id);if(rx)rx.forEach(r=>ur[r.post_id]=r.value)}
 
       $('feed').innerHTML=posts.map(p=>{
-        const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="post-tag" onclick="filterByTag(\''+esc(p.tag)+'\')">'+esc(p.tag)+'</span>':'',
-          rx=ur[p.id],uc=rx===1?' liked':'',dc=rx===-1?' disliked':'';
-        return '<div class="post-card" id="post-'+p.id+'"><div class="post-meta"><span class="post-handle" onclick="showProfile(\''+p.author_id+'\')">@'+esc(n)+'</span>'+tg+'<span>'+t+'</span></div><div class="post-body">'+esc(p.body)+'</div><div class="post-actions"><button class="post-action'+uc+'" onclick="react(\''+p.id+'\',1)">▲ '+(p.ups||0)+'</button><button class="post-action'+dc+'" onclick="react(\''+p.id+'\',-1)">▼ '+(p.downs||0)+'</button><button class="post-action" onclick="toggleReplies(\''+p.id+'\')">💬 <span id="rc-'+p.id+'">'+(p.reply_count||0)+'</span></button></div><div class="replies-section" id="replies-'+p.id+'"><div id="rlist-'+p.id+'"></div>'+(user?'<div class="reply-composer"><textarea class="reply-input" id="rinput-'+p.id+'" placeholder="Vasta..." rows="1"></textarea><button class="reply-send" id="rsend-'+p.id+'" onclick="submitReply(\''+p.id+'\')">Vasta</button></div>':'')+'</div></div>'
+        const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="post-tag">'+esc(p.tag)+'</span>':'';
+        return '<div class="post-card"><div class="post-meta"><span class="post-handle" onclick="showProfile(\''+p.author_id+'\')">@'+esc(n)+'</span>'+tg+'<span>'+t+'</span></div><div class="post-body">'+esc(p.body)+'</div><div class="post-actions"><span class="post-action">▲ '+(p.ups||0)+'</span><span class="post-action">▼ '+(p.downs||0)+'</span><span class="post-action">💬 '+(p.reply_count||0)+'</span></div></div>'
+      }).join('');
+
+      // Pulss updates separately via loadHeroFeed()
+    }
+
+    // Render hero feed from given posts array (avoids extra DB call)
+    function renderHeroFeed(posts){
+      const items=posts.slice(0,20);
+      $('heroFeed').innerHTML=items.map(p=>{
+        const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="hp-t" onclick="filterByTag(\''+esc(p.tag)+'\')">'+esc(p.tag)+'</span>':'';
+        const replyComposer=user?'<div class="reply-composer"><textarea class="reply-input" id="rinput-'+p.id+'" placeholder="Vasta..." rows="1"></textarea><button class="reply-send" id="rsend-'+p.id+'" onclick="submitReply(\''+p.id+'\')">Vasta</button></div>':'<div style="padding:8px 0;font-size:13px;color:var(--muted)"><a style="color:var(--accent2);cursor:pointer" onclick="showAuth()">Liitu</a> et vastata</div>';
+        return '<div class="hp" id="post-'+p.id+'"><div class="hp-m"><span class="hp-h" onclick="showProfile(\''+p.author_id+'\')">@'+esc(n)+'</span><span>'+t+'</span></div><p>'+tg+esc(p.body)+'</p><div class="hp-a"><span>▲ '+(p.ups||0)+'</span><span style="cursor:pointer" onclick="toggleReplies(\''+p.id+'\')">💬 <span id="rc-'+p.id+'">'+(p.reply_count||0)+'</span></span><span style="cursor:pointer" onclick="sharePost(\''+p.id+'\')">🔗 Jaga</span></div><div class="replies-section" id="replies-'+p.id+'"><div id="rlist-'+p.id+'"></div>'+replyComposer+'</div></div>'
       }).join('');
 
       // Re-open reply sections that were open before re-render
@@ -487,17 +496,6 @@
           openReplies.delete(pid);
         }
       }
-
-      // Pulss updates separately via loadHeroFeed()
-    }
-
-    // Render hero feed from given posts array (avoids extra DB call)
-    function renderHeroFeed(posts){
-      const items=posts.slice(0,20);
-      $('heroFeed').innerHTML=items.map(p=>{
-        const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="hp-t" onclick="filterByTag(\''+esc(p.tag)+'\')">'+esc(p.tag)+'</span>':'';
-        return '<div class="hp"><div class="hp-m"><span class="hp-h" onclick="showProfile(\''+p.author_id+'\')">@'+esc(n)+'</span><span>'+t+'</span></div><p>'+tg+esc(p.body)+'</p><div class="hp-a"><span>▲ '+(p.ups||0)+'</span><span>💬 '+(p.reply_count||0)+'</span><span style="cursor:pointer" onclick="sharePost(\''+p.id+'\')">🔗 Jaga</span></div></div>'
-      }).join('');
     }
 
     // Standalone hero feed refresh (fetches fresh data from DB)
@@ -640,7 +638,8 @@
       const a=profs[p.author_id],n=a?a.username:'keegi',t=ago(p.created_at),tg=p.tag?'<span class="post-tag" onclick="filterByTag(\''+esc(p.tag)+'\')">'+esc(p.tag)+'</span>':'';
       $('filterBar').style.display='flex';$('filterBar').className='filter-bar';
       $('filterBar').innerHTML='<span>Üksik postitus</span><button class="filter-clear" onclick="clearDeepLink()">✕ Näita kõiki</button>';
-      $('feed').innerHTML='<div class="post-card" id="post-'+p.id+'"><div class="post-meta"><span class="post-handle" onclick="showProfile(\''+p.author_id+'\')">@'+esc(n)+'</span>'+tg+'<span>'+t+'</span></div><div class="post-body">'+esc(p.body)+'</div><div class="post-actions"><button class="post-action" onclick="react(\''+p.id+'\',1)">▲ '+(p.ups||0)+'</button><button class="post-action" onclick="react(\''+p.id+'\',-1)">▼ '+(p.downs||0)+'</button><button class="post-action" onclick="toggleReplies(\''+p.id+'\')">💬 <span id="rc-'+p.id+'">'+(p.reply_count||0)+'</span></button></div><div class="replies-section open" id="replies-'+p.id+'"><div id="rlist-'+p.id+'"></div>'+(user?'<div class="reply-composer"><textarea class="reply-input" id="rinput-'+p.id+'" placeholder="Vasta..." rows="1"></textarea><button class="reply-send" id="rsend-'+p.id+'" onclick="submitReply(\''+p.id+'\')">Vasta</button></div>':'')+'</div></div>';
+      const replyComposer=user?'<div class="reply-composer"><textarea class="reply-input" id="rinput-'+p.id+'" placeholder="Vasta..." rows="1"></textarea><button class="reply-send" id="rsend-'+p.id+'" onclick="submitReply(\''+p.id+'\')">Vasta</button></div>':'<div style="padding:8px 0;font-size:13px;color:var(--muted)"><a style="color:var(--accent2);cursor:pointer" onclick="showAuth()">Liitu</a> et vastata</div>';
+      $('feed').innerHTML='<div class="post-card" id="post-'+p.id+'"><div class="post-meta"><span class="post-handle" onclick="showProfile(\''+p.author_id+'\')">@'+esc(n)+'</span>'+tg+'<span>'+t+'</span></div><div class="post-body">'+esc(p.body)+'</div><div class="post-actions"><span class="post-action">▲ '+(p.ups||0)+'</span><span class="post-action">▼ '+(p.downs||0)+'</span><button class="post-action" onclick="toggleReplies(\''+p.id+'\')">💬 <span id="rc-'+p.id+'">'+(p.reply_count||0)+'</span></button></div><div class="replies-section open" id="replies-'+p.id+'"><div id="rlist-'+p.id+'"></div>'+replyComposer+'</div></div>';
       openReplies.add(postId);
       loadReplies(postId);
       document.querySelector('#voog')?.scrollIntoView({behavior:'smooth'});
